@@ -1,0 +1,7 @@
+- +embeddings_per_dim=6
+- +hidden_layers=[20,20,20,20]
+- +poisson_equation=poly
+- +batch_size=128
+- +epochs=20000
+- +optimizer=Adam
+- +optimizer_threshold=5000

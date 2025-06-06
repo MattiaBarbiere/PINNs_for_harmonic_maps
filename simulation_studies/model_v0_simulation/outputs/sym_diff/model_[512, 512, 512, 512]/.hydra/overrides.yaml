@@ -1,0 +1,5 @@
+- +numb_batches=100
+- +embeddings_per_dim=2
+- +embedding_layer=True
+- +hidden_layers=[512,512,512,512]
+- +poisson_equation=sym_diff

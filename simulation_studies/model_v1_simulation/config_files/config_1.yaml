@@ -1,0 +1,27 @@
+hydra:
+  run:
+    dir: ./simulation_studies/model_v1_simulation/outputs
+  sweep:
+    dir: ./simulation_studies/model_v1_simulation/outputs
+    subdir: ${embeddings_per_dim} emb_${hidden_layers}_${poisson_equation}_${optimizer}_${optimizer_threshold}
+  sweeper:
+    params:
+      # +embeddings_per_dim: 8, 10, 15, 20, 25, 30
+      # +hidden_layers: "[20,20,20,20], [64,64,64,64,64,64]"
+      # +poisson_equation: "eigenfunc"
+      # +batch_size: 128
+      # +epochs: 20000
+      # +optimizer: "Adam"
+      # +optimizer_threshold: 5000, 10000, 17000
+      +embeddings_per_dim: 8
+      +hidden_layers: "[64,64,64,64,64,64]"
+      +poisson_equation: "eigenfunc"
+      +batch_size: 128
+      +epochs: 15000
+      +optimizer: "Adam"
+      +optimizer_threshold: 7000
+  job:
+    chdir: True
+
+model:
+  type: "v1"

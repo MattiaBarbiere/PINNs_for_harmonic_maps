@@ -1,0 +1,19 @@
+hydra:
+  run:
+    dir: ./simulation_studies/model_v0_simulation/outputs
+  sweep:
+    dir: ./simulation_studies/model_v0_simulation/outputs
+    subdir: ${poisson_equation}/model_${hidden_layers}
+  sweeper:
+    params:
+      +numb_batches: 100
+      +embeddings_per_dim: 2
+      +embedding_layer: True
+      +hidden_layers: "[512, 512], [64, 64], [128, 256, 128], [512, 512, 512, 512], [16, 64, 128, 256, 128, 64, 16], [128, 256, 512, 256, 128], [64, 64, 64, 64, 64, 64], [64, 128, 128, 128, 64], [128, 128]"
+      +poisson_equation: "diff, sym_diff, eigenfunc"
+  job:
+    chdir: True
+
+model:
+  type: "v0"
+  optimizer: "adam"

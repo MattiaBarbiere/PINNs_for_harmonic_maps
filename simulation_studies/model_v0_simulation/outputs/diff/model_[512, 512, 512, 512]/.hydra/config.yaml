@@ -1,0 +1,12 @@
+model:
+  type: v0
+  optimizer: adam
+numb_batches: 100
+embeddings_per_dim: 2
+embedding_layer: true
+hidden_layers:
+- 512
+- 512
+- 512
+- 512
+poisson_equation: diff

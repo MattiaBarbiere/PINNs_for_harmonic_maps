@@ -1,0 +1,5 @@
+- PDE.PDE_kwargs.a_left=-0.475
+- PDE.PDE_kwargs.a_right=2.75
+- PDE.PDE_kwargs.b_bottom=2.75
+- PDE.PDE_kwargs.b_top=-3.52
+- PDE.PDE_kwargs.degree=4

@@ -1,0 +1,22 @@
+hydra:
+  run:
+    dir: ./simulation_studies/composite_loss_simulation/outputs
+  sweep:
+    dir: ./simulation_studies/composite_loss_simulation/outputs
+    subdir: ${loss_BC_weight} weight_${hidden_layers}_${optimizer}_${optimizer_threshold}
+  sweeper:
+    params:
+      +embeddings_per_dim: 2
+      +hidden_layers: "[20, 20, 20, 20], [64, 64, 64, 64, 64, 64]"
+      +poisson_equation: "eigenfunc"
+      +batch_size: 128
+      +epochs: 20000
+      +optimizer: "Adam"
+      +has_embedding_layer: False
+      +optimizer_threshold: 3000, 5000, 15000
+      +loss_BC_weight: 2, 4, 8, 10, 15
+  job:
+    chdir: True
+
+model:
+  type: "v0"

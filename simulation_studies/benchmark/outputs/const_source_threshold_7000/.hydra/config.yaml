@@ -1,0 +1,29 @@
+PDE:
+  name: const_source
+model:
+  type: v2
+  params:
+    nodes_hidden_layers:
+    - 64
+    - 64
+    - 64
+    - 64
+    - 64
+    - 64
+    activation_function: gelu
+    has_embedding_layer: false
+train:
+  batch_size: 128
+  n_epochs: 15000
+  optimizer: Adam
+  optimizer_threshold: 7000
+  loss_BC_weight: 20
+  save_BC_loss: true
+  boundary_batch_ratio: 1
+  seed: 42
+  interior_sampler: null
+  boundary_sampler: null
+solver:
+  nx: 21
+  ny: null
+  p: 3

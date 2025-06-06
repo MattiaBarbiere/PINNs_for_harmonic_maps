@@ -1,0 +1,5 @@
+- +numb_batches=100
+- +embeddings_per_dim=2
+- +embedding_layer=True
+- +hidden_layers=[64,128,128,128,64]
+- +poisson_equation=eigenfunc

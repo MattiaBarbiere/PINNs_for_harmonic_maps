@@ -1,0 +1,60 @@
+# hydra: 
+#   run:
+#     dir: ./simulation_studies/best_model_architecture/outputs
+#   sweep:
+#     dir: ./simulation_studies/best_model_architecture/outputs
+#     subdir: ${hidden_layers}_${poisson_equation}
+#   sweeper:
+#     params:
+#       +embeddings_per_dim: 2
+#       +hidden_layers: "[20, 20, 20, 20], [64, 64, 64, 64, 64, 64], [128, 128, 128, 128, 128, 128, 128, 128], [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]"
+#       +poisson_equation: "eigenfunc, const_source, non_const_BC"
+#       +batch_size: 128
+#       +epochs: 15000
+#       +optimizer: "Adam"
+#       +has_embedding_layer: False
+#       +optimizer_threshold: 7000
+#       +loss_BC_weight: 30
+#   job:
+#     chdir: True
+
+#   launcher:
+#     _target_: hydra_plugins.hydra_joblib_launcher.joblib_launcher.JoblibLauncher
+#     n_jobs: 27  # Run jobs in parallel
+
+# defaults:
+#   - override hydra/launcher: joblib
+
+# model:
+#   type: "v0"
+
+hydra:
+  run:
+    dir: ./simulation_studies/best_model_architecture/outputs
+  sweep:
+    dir: ./simulation_studies/best_model_architecture/outputs
+    subdir: ${hidden_layers}_${poisson_equation}_${seed}
+  sweeper:
+    params:
+      +embeddings_per_dim: 2
+      +hidden_layers: "[20], [64], [128], [20, 20], [64, 64], [128, 128], [20, 20, 20], [64, 64, 64], [128, 128, 128], [20, 20, 20, 20], [64, 64, 64, 64], [128, 128, 128, 128], [20, 20, 20, 20, 20], [64, 64, 64, 64, 64], [128, 128, 128, 128, 128], [20, 20, 20, 20, 20, 20], [64, 64, 64, 64, 64, 64], [128, 128, 128, 128, 128, 128]"
+      +poisson_equation: "eigenfunc, const_source, non_const_BC"
+      +batch_size: 128
+      +epochs: 15000
+      +optimizer: "Adam"
+      +has_embedding_layer: False
+      +optimizer_threshold: 7000
+      +loss_BC_weight: 30
+      +seed: 0, 42, 123
+  job:
+    chdir: True
+
+  launcher:
+    _target_: hydra_plugins.hydra_joblib_launcher.joblib_launcher.JoblibLauncher
+    n_jobs: 27   # Run jobs in parallel
+
+defaults:
+  - override hydra/launcher: joblib
+
+model:
+  type: "v0"

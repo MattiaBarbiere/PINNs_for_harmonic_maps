@@ -1,0 +1,10 @@
+- +embeddings_per_dim=2
+- +hidden_layers=[20,20,20,20]
+- +poisson_equation=const_source
+- +batch_size=128
+- +epochs=15000
+- +optimizer=Adam
+- +has_embedding_layer=False
+- +optimizer_threshold=7000
+- +loss_BC_weight=30
+- +seed=42

@@ -1,0 +1,80 @@
+defaults:
+  - _self_
+  - override hydra/launcher: submitit_slurm
+  
+
+hydra:
+  run:
+    dir: ./simulation_studies/final_training/outputs
+  sweep:
+    dir: ./simulation_studies/final_training/outputs
+    subdir: ${PDE.name}_mu_x_${PDE.PDE_kwargs.mu_x}_mu_y_${PDE.PDE_kwargs.mu_y}_std_x_${PDE.PDE_kwargs.std_x}_std_y_${PDE.PDE_kwargs.std_y}
+  sweeper:
+    params:
+      PDE.PDE_kwargs.mu_x: 0.25, 0.75
+      PDE.PDE_kwargs.mu_y: 0.25, 0.75
+      PDE.PDE_kwargs.std_x: 0.1, 0.25
+      PDE.PDE_kwargs.std_y: 0.25
+  
+  job:
+    chdir: True
+
+  launcher:
+    # submitit_folder: ${hydra.sweep.dir}/.submitit/%j
+    timeout_min: 2880
+    cpus_per_task: null
+    gpus_per_node: null
+    tasks_per_node: 1
+    mem_gb: null
+    nodes: 1
+    name: ${hydra.job.name}
+    _target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
+    partition: null
+    qos: "normal"
+    comment: null
+    constraint: null
+    exclude: null
+    gres: gpu:1
+    cpus_per_gpu: 1
+    gpus_per_task: 1
+    mem_per_gpu: null
+    mem_per_cpu: null
+    account: null
+    signal_delay_s: 120
+    max_num_timeout: 0
+    additional_parameters: {}
+    array_parallelism: 256
+    setup: null
+
+
+PDE:
+  name: "gaussian_bump_NonDF"
+  PDE_kwargs:
+    mu_x: 0.0
+    mu_y: 0.0
+    std_x: 1
+    std_y: 1
+
+model:
+  type: "v2"
+  model_kwargs:
+    nodes_hidden_layers: [64, 64, 64, 64, 64, 64]
+    activation_function: "gelu"
+    has_embedding_layer: False
+
+train:
+  batch_size: 128 
+  n_epochs: 15000 
+  optimizer: "Adam"
+  optimizer_threshold: 7000
+  loss_BC_weight: 20
+  save_BC_loss: True
+  boundary_batch_ratio: 1
+  seed: 42
+  interior_sampler: null
+  boundary_sampler: null
+
+solver:
+  nx: 21
+  ny: null
+  p: 3

@@ -1,0 +1,4 @@
+- PDE.PDE_kwargs.mu_x=0.75
+- PDE.PDE_kwargs.mu_y=0.75
+- PDE.PDE_kwargs.std_x=0.25
+- PDE.PDE_kwargs.std_y=0.25

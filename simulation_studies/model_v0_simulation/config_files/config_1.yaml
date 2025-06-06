@@ -1,0 +1,19 @@
+hydra:
+  run:
+    dir: ./simulation_studies/model_v0_simulation/outputs
+  sweep:
+    dir: ./simulation_studies/model_v0_simulation/outputs
+    subdir: ${numb_batches} batches_${embeddings_per_dim} embeddings_per_dim
+  sweeper:
+    params:
+      +numb_batches: 1, 10, 100, 1000
+      +embeddings_per_dim: 1, 2, 4, 6, 8, 10
+      +embedding_layer: True
+      +hidden_layers: [128, 256, 128]
+      +poisson_equation: "diff"
+  job:
+    chdir: True
+
+model:
+  type: "v0"
+  optimizer: "adam"

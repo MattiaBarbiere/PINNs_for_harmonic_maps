@@ -1,0 +1,5 @@
+- +numb_batches=10
+- +embeddings_per_dim=1
+- +embedding_layer=True
+- +hidden_layers=[128,256,128]
+- +poisson_equation=diff

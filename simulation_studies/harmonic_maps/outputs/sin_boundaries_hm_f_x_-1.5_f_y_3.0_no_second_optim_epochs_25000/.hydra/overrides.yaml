@@ -1,0 +1,4 @@
+- PDE.PDE_kwargs.frequency_x=-1.5
+- PDE.PDE_kwargs.frequency_y=3.0
+- train.optimizer_threshold=25000
+- train.n_epochs=25000

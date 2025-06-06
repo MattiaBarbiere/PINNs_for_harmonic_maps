@@ -1,0 +1,15 @@
+model:
+  type: v1
+embeddings_per_dim: 8
+hidden_layers:
+- 64
+- 64
+- 64
+- 64
+- 64
+- 64
+poisson_equation: eigenfunc
+batch_size: 128
+epochs: 20000
+optimizer: Adam
+optimizer_threshold: 10000

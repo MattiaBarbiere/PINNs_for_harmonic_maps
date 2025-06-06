@@ -1,0 +1,3 @@
+- PDE.name=poly
+- train.n_epochs=7000
+- train.optimizer_threshold=0

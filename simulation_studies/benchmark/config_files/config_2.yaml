@@ -1,0 +1,46 @@
+defaults:
+  - _self_
+  - base.yaml
+  - override hydra/launcher: submitit_slurm
+  
+
+hydra:
+  run:
+    dir: ./simulation_studies/benchmark/outputs
+  sweep:
+    dir: ./simulation_studies/benchmark/outputs
+    subdir: ${PDE.name}_threshold_${train.optimizer_threshold}
+  sweeper:
+    params:
+      PDE.name: "diff, sym_diff, eigenfunc, poly, const_source, non_const_BC, piecewise_diff, eigenfunc_NonDF, const_source_NonDF, poly_NonDF"
+      train.n_epochs: 7000
+      train.optimizer_threshold: 0
+  job:
+    chdir: True
+
+  launcher:
+    # submitit_folder: ${hydra.sweep.dir}/.submitit/%j
+    timeout_min: 2880
+    cpus_per_task: null
+    gpus_per_node: null
+    tasks_per_node: 1
+    mem_gb: null
+    nodes: 1
+    name: ${hydra.job.name}
+    _target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
+    partition: null
+    qos: "normal"
+    comment: null
+    constraint: null
+    exclude: null
+    gres: gpu:1
+    cpus_per_gpu: 1
+    gpus_per_task: 1
+    mem_per_gpu: null
+    mem_per_cpu: null
+    account: null
+    signal_delay_s: 120
+    max_num_timeout: 0
+    additional_parameters: {}
+    array_parallelism: 256
+    setup: null

@@ -1,0 +1,3 @@
+- PDE.name=non_const_BC
+- train.n_epochs=7000
+- train.optimizer_threshold=0

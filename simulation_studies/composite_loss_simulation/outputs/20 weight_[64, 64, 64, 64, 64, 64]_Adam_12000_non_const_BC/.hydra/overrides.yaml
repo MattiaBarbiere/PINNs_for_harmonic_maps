@@ -1,0 +1,9 @@
+- +embeddings_per_dim=2
+- +hidden_layers=[64,64,64,64,64,64]
+- +poisson_equation=non_const_BC
+- +batch_size=128
+- +epochs=15000
+- +optimizer=Adam
+- +has_embedding_layer=False
+- +optimizer_threshold=12000
+- +loss_BC_weight=20

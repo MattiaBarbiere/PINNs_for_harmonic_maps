@@ -1,0 +1,18 @@
+poisson_equation: non_const_BC
+hidden_layers:
+- 64
+- 64
+- 64
+- 64
+- 64
+- 64
+batch_size: 128
+epochs: 10
+optimizer: Adam
+optimizer_threshold: 9
+loss_BC_weight: 30
+seed: 0
+boundary_batch_ratio: 0.25
+activation_function: tanh
+model:
+  type: v2
