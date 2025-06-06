@@ -172,3 +172,4 @@ testing.ipynb
 simulation_gpu.job
 simulations.job
 report_images_final.ipynb
+report_images_folder/*
