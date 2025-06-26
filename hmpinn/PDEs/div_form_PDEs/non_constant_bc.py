@@ -1,84 +1,104 @@
+"""
+Non-Constant Boundary Condition PDE.
+
+This module provides a PDE implementation with non-constant Dirichlet boundary conditions
+in divergence form, featuring a symmetric diffusion matrix and known analytical solution.
+
+Classes:
+    NonConstantBC: PDE with spatially varying boundary conditions.
+"""
+
+import torch
+from functools import partial
+
+import nutils.function as fn
+
 from hmpinn.PDEs.residuals.div_form_residual import DivFormResidual
 from hmpinn.PDEs.boundary_conditions.dirichlet import DirichletBC
 from hmpinn.PDEs.solutions.with_solution import WithSolution
-import torch
-from functools import partial
 from hmpinn.PDEs.utils import ensure_backend, check_backend, stack, backend_to_str
-import nutils.function as fn
 
-# The source term
 def f(x, backend=torch):
     """
-    Source term f(x) for the Poisson equation.
+    Source term function for the non-constant boundary condition equation.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of f(x)
+        torch.Tensor
+            Source term values at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    # Extract x and y from the input tensor
+    # Extract coordinate components
     x_val = x[:, 0]
     y_val = x[:, 1]
 
-    # Compute the expression
+    # Compute source term expression
     result = 3 * y_val**4 + 9 * y_val**2 + 4 * x_val**2 * y_val + 18 * y_val + 4 * x_val + 4
     return result
 
-# The analytical solution
 def u(x, backend=torch):
     """
-    Solution u(x) to the Poisson equation.
+    Analytical solution for the non-constant boundary condition equation.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of u(x)
+        torch.Tensor
+            Analytical solution values at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
     return x[:,0] **2 + x[:,1] ** 3
 
-
-# The boundary value
 def boundary_condition(x, backend=torch):
     """
+    Non-constant Dirichlet boundary condition function.
+
     Parameters:
-    x (torch.Tensor): The input tensor of size (batch_size, 2)
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Boundary coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: The boundary condition (default is constant value equal to 0)
-
+        torch.Tensor
+            Boundary condition values matching the analytical solution.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
     return (x[:,0] **2 + x[:,1] ** 3)
 
-# The diffusion matrix
 def diffusion_matrix(x, model=None, backend=torch):
     """
-    Diffusion matrix
+    Symmetric diffusion matrix function with off-diagonal coupling.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    model (torch.nn.Module, optional): Model that is trying to solve the pde. This is used only for PDEs that have
-                                        a diffusion matrix that depends on the true solution (default is None).
-                                        Not used in this case.
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        model: torch.nn.Module, optional
+            Model instance (unused in this implementation).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Diffusion matrix of size (batch_size, 2, 2)
+        torch.Tensor or fn.Array
+            Symmetric diffusion matrix of shape (batch_size, 2, 2) or symbolic array.
     """
     if isinstance(x, fn.Array):
         # Symbolic diffusion matrix construction
@@ -89,8 +109,7 @@ def diffusion_matrix(x, model=None, backend=torch):
 
         return diffusion
 
-
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
@@ -102,41 +121,63 @@ def diffusion_matrix(x, model=None, backend=torch):
     diffusion[:, 1, 1] = x[:, 1] + 3
     return diffusion
 
-def grad_u(x , backend=torch):
+def grad_u(x, backend=torch):
     """
-    Gradient of the analytical solution u(x) to the Poisson equation.
+    Gradient of the analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Gradient of u(x)
+        torch.Tensor
+            Gradient of the analytical solution at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
     grad_x = 2 * x[:, 0]
     grad_y = 3 * x[:, 1] ** 2
-    return stack([grad_x, grad_y], dim = 1, backend=backend)
+    return stack([grad_x, grad_y], dim=1, backend=backend)
     
 class NonConstantBC(DivFormResidual, DirichletBC, WithSolution):
     """
-    Non-divergence form for a PDE with non-constant boundary condition.
+    Divergence form PDE with non-constant boundary conditions.
+    
+    This class implements a PDE with symmetric diffusion matrix and spatially
+    varying Dirichlet boundary conditions that match the analytical solution.
     """
+    
     def __init__(self, backend=torch):
+        """
+        Initialize the non-constant boundary condition PDE.
+
+        Parameters:
+            backend: torch or np, optional
+                Backend library to use for computations. Defaults to torch.
+        """
+        # Create partial functions with bound backend
         f_partial = partial(f, backend=backend)
         u_partial = partial(u, backend=backend)
         grad_u_partial = partial(grad_u, backend=backend)
         diffusion_matrix_partial = partial(diffusion_matrix, backend=backend)
         boundary_condition_partial = partial(boundary_condition, backend=backend)
 
-
+        # Initialize parent classes
         DivFormResidual.__init__(self, f_partial, diffusion_matrix_partial, backend=backend)
         DirichletBC.__init__(self, boundary_condition_partial, backend=backend)
         WithSolution.__init__(self, u_partial, grad_u_partial, backend=backend)
 
     def __repr__(self):
+        """
+        String representation of the NonConstantBC class.
+
+        Returns:
+            str
+                String representation including backend information.
+        """
         backend_str = backend_to_str(self.backend)
         return f"NonConstantBC(backend={backend_str})"

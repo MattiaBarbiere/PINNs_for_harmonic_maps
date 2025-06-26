@@ -1,84 +1,97 @@
+"""
+Symmetric Diffusion PDE.
+
+This module provides a symmetric diffusion PDE implementation with known analytical solution.
+The PDE is in divergence form with a symmetric diffusion matrix.
+
+Classes:
+    SymDiffusion: Symmetric diffusion PDE with analytical solution.
+"""
+
+import torch
+from functools import partial
+
+import nutils.function as fn
+
 from hmpinn.PDEs.residuals.div_form_residual import DivFormResidual
 from hmpinn.PDEs.boundary_conditions.constant import ConstantBC
 from hmpinn.PDEs.solutions.with_solution import WithSolution
-import torch
-from functools import partial
 from hmpinn.PDEs.utils import ensure_backend, check_backend, stack, backend_to_str
-import nutils.function as fn
 
-# The source term
 def f(x, backend=torch):
     """
-    Source term f(x) for the Poisson equation.
+    Source term function for the symmetric diffusion equation.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of f(x)
+        torch.Tensor
+            Source term values at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    # Extract x and y from the input tensor
+    # Extract coordinate components
     x_val = x[:, 0]
     y_val = x[:, 1]
 
-    # Compute the expression
+    # Compute source term expression
     result = (y_val - y_val**2) * (1 - 4 * x_val) + \
             (2 * x_val - 3 * x_val**2) * (y_val - 2 * y_val**2) + \
             (2 * y_val - 3 * y_val**2) * (x_val - 2 * x_val**2) + \
             (x_val - x_val**2) * (1 - 4 * y_val)
     return result
 
-# The analytical solution
 def u(x, backend=torch):
     """
-    Solution u(x) to the Poisson equation.
+    Analytical solution for the symmetric diffusion equation.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of u(x)
+        torch.Tensor
+            Analytical solution values at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
     return x[:,1] * (1 - x[:,1]) * x[:,0] * (1 - x[:,0])
 
-# The diffusion matrix
 def diffusion_matrix(x, model=None, backend=torch):
     """
-    Diffusion matrix
+    Symmetric diffusion matrix function.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    model (torch.nn.Module, optional): Model that is trying to solve the pde. This is used only for PDEs that have
-                                        a diffusion matrix that depends on the true solution (default is None).
-                                        Not used in this case.
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        model: torch.nn.Module, optional
+            Model instance (unused in this implementation).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Diffusion matrix of size (batch_size, 2, 2)
+        torch.Tensor or fn.Array
+            Symmetric diffusion matrix of shape (batch_size, 2, 2) or symbolic array.
     """
     if isinstance(x, fn.Array):
         # Symbolic case using nutils.function
-        
-        # Create the symbolic diffusion matrix
         diffusion = fn.asarray([[
-            [x[0, 0], x[0, 0] * x[0, 1]],   # First row
-            [x[0, 1] * x[0, 0], x[0, 1]],   # Second row
+            [x[0, 0], x[0, 0] * x[0, 1]],
+            [x[0, 1] * x[0, 0], x[0, 1]],
         ]])
-
         return diffusion
 
-
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
@@ -92,37 +105,60 @@ def diffusion_matrix(x, model=None, backend=torch):
 
 def grad_u(x, backend=torch):
     """
-    Gradient of the analytical solution u(x) to the Poisson equation.
+    Gradient of the analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Gradient of u(x)
+        torch.Tensor
+            Gradient of the analytical solution at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
     grad_x = (1 - 2 * x[:, 0]) * (1 - x[:, 1]) * x[:, 1]
     grad_y = (1 - 2 * x[:, 1]) * (1 - x[:, 0]) * x[:, 0]
-    return stack([grad_x, grad_y], dim = 1, backend=backend)
+    return stack([grad_x, grad_y], dim=1, backend=backend)
     
 class SymDiffusion(DivFormResidual, ConstantBC, WithSolution):
     """
-    SymDiffusion class for the diffusion equation with Dirichlet boundary conditions.
+    Symmetric diffusion PDE with constant boundary conditions.
+    
+    This class implements a PDE with symmetric diffusion matrix in divergence form,
+    featuring a known analytical solution and constant boundary conditions.
     """
+    
     def __init__(self, backend=torch):
+        """
+        Initialize the symmetric diffusion PDE.
+
+        Parameters:
+            backend: torch or np, optional
+                Backend library to use for computations. Defaults to torch.
+        """
+        # Create partial functions with bound backend
         f_partial = partial(f, backend=backend)
         u_partial = partial(u, backend=backend)
         grad_u_partial = partial(grad_u, backend=backend)
         diffusion_matrix_partial = partial(diffusion_matrix, backend=backend)
 
+        # Initialize parent classes
         DivFormResidual.__init__(self, f_partial, diffusion_matrix_partial, backend=backend)
         ConstantBC.__init__(self, backend=backend)
         WithSolution.__init__(self, u_partial, grad_u_partial, backend=backend)
 
     def __repr__(self):
+        """
+        String representation of the SymDiffusion class.
+
+        Returns:
+            str
+                String representation including backend information.
+        """
         backend_str = backend_to_str(self.backend)
         return f"SymDiffusion(backend={backend_str})"

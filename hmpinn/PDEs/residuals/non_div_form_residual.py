@@ -1,18 +1,38 @@
+"""
+Non-Divergence Form Residual.
+
+This module provides the non-divergence form residual implementation for PDEs,
+using the Hessian operator with diffusion matrix.
+
+Classes:
+    NonDivFormResidual: Non-divergence form residual for PDEs.
+"""
+
+import torch
+
 from hmpinn.PDEs.residuals.base import BaseResidual
 from hmpinn.differential_operators.hessian import Hessian
-import torch
 
 
 class NonDivFormResidual(BaseResidual):
+    """
+    Non-divergence form residual implementation for PDEs.
+
+    This class computes residuals for PDEs in non-divergence form using the
+    Hessian operator with diffusion matrices.
+    """
+
     def __init__(self, f, diffusion_matrix=None, backend=torch):
         """
-        Class for the non divergence form residual of a PDE.
+        Initialize the non-divergence form residual.
 
         Parameters:
-        f (callable): The source term function.
-        diffusion_matrix (callable, optional): The diffusion matrix function. If None uses identity. 
-                                                Defaults to None.
-        backend (torch or np): The backend to use for operations. Default is torch.
+            f: callable
+                The source term function.
+            diffusion_matrix: callable, optional
+                The diffusion matrix function. Uses identity if None.
+            backend: torch or np, optional
+                The backend to use for operations. Defaults to torch.
         """
         super().__init__(f, diffusion_matrix, backend)
 
@@ -20,23 +40,36 @@ class NonDivFormResidual(BaseResidual):
     def is_in_divergence_form(self):
         """
         Check if the residual is in divergence form.
+
+        Returns:
+            bool
+                Always False for non-divergence form residuals.
         """
         return False
 
     def differential_operator(self, func, x):
         """
-        Compute the differential operator for the non divergence form residual.
+        Compute the differential operator for non-divergence form residuals.
+
+        Uses the Hessian operator with diffusion matrix via Frobenius product.
 
         Parameters:
-        func (torch.nn.Module or torch.tensor): The model to compute the derivative of or a tensor of size (batch_size)
-        x (torch.Tensor): The input to the model
+            func: torch.nn.Module or torch.Tensor
+                The model or tensor to apply the operator to.
+            x: torch.Tensor
+                The input coordinates.
 
         Returns:
-        torch.tensor: The differential operator of the model wrt x (batch_size)
+            torch.Tensor
+                The result of applying the Hessian operator with diffusion matrix.
+
+        Raises:
+            ValueError: If backend is not torch (required for gradients).
         """
-        # If the backend is not torch we cannot perform this
+        # Non-divergence form requires torch backend for automatic differentiation
         if self.backend != torch:
             raise ValueError("Backend must be torch for this operation.")
 
-        return (Hessian()(func, x) * self.diffusion_matrix(x, model=func)).sum(dim = (-2, -1))
+        # Compute Hessian and apply diffusion matrix via element-wise product and sum
+        return (Hessian()(func, x) * self.diffusion_matrix(x, model=func)).sum(dim=(-2, -1))
 

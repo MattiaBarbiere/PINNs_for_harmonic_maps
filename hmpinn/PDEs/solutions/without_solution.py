@@ -1,65 +1,88 @@
-from hmpinn.PDEs.solutions.base import BaseSolution
+"""
+Solution Class without Known Analytical Solution.
+
+This module provides the solution implementation for PDEs without known
+analytical solutions, such as complex nonlinear problems.
+
+Classes:
+    WithoutSolution: Solution class for PDEs without known analytical solutions.
+"""
+
 import torch
+
+from hmpinn.PDEs.solutions.base import BaseSolution
 
 class WithoutSolution(BaseSolution):
     """
-    Base class for PDEs with unknown analytical solutions.
+    Solution class for PDEs without known analytical solutions.
+    
+    This class handles PDEs where no analytical solution is available,
+    such as complex nonlinear problems or harmonic maps.
     """
+    
     def __init__(self, *args, backend=torch):
         """
-        Initialize with unknown solution.
+        Initialize without analytical solution.
 
         Parameters:
-        args: The are not used but are added to keep the interface consistent.
+            *args: 
+                Unused arguments for interface consistency.
+            backend: torch or np, optional
+                The backend to use for operations. Defaults to torch.
         """
         super().__init__(backend=backend)
 
     @property   
     def has_solution(self):
         """
-        Check if the PDE has a known solution.
+        Check if an analytical solution exists.
 
         Returns:
-        bool: False, indicating no known solution.
+            bool
+                Always False for this class.
         """
         return False
 
     def u(self, x):
         """
-        Abstract method to compute the solution.
-        Must be implemented in subclasses.
+        Evaluate the analytical solution (not available).
 
         Parameters:
-        x (torch.Tensor): The input to the model.
+            x: torch.Tensor
+                The input coordinates (unused).
 
         Returns:
-        torch.Tensor: The solution at x or None if it does not exist.
+            None
+                Always returns None as no solution is available.
         """
         return None
 
     def grad_u(self, x):
         """
-        Abstract method to compute the gradient of the solution.
-        Must be implemented in subclasses.
+        Evaluate the gradient of the analytical solution (not available).
 
         Parameters:
-        x (torch.Tensor): The input to the model.
+            x: torch.Tensor
+                The input coordinates (unused).
 
         Returns:
-        torch.Tensor: The gradient of the solution at x or None if it does not exist.
+            None
+                Always returns None as no solution is available.
         """
         return None
 
     def compute_relative_grad_error(self, model, X):
         """
-        Abstract method to compute the relative gradient error.
-        Must be implemented in subclasses.
+        Compute the relative gradient error (not available).
 
         Parameters:
-        model (torch.nn.Module): The model to compute the gradient of.
-        X (torch.Tensor): The input to the model.
+            model: torch.nn.Module
+                The neural network model (unused).
+            X: torch.Tensor
+                The input coordinates (unused).
 
         Returns:
-        torch.Tensor: The relative gradient error or None if it does not exist.
+            None
+                Always returns None as no analytical solution is available.
         """
         return None
