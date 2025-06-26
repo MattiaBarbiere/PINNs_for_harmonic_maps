@@ -188,10 +188,8 @@ def train(model,
     """
     # Select and report device
     if torch.cuda.is_available():
-        # device = torch.device("cuda")
-        # print("Using CUDA")
-        device = torch.device("cpu")
-        print("Using CPU")
+        device = torch.device("cuda")
+        print("Using CUDA")
     else:
         device = torch.device("cpu")
         print("Using CPU")
@@ -239,7 +237,7 @@ def train(model,
     for epoch in tqdm.tqdm(range(optimizer_threshold, n_epochs)):
         # Sample training points
         X, X_boundary = sample_domain_points(interior_sampler, boundary_sampler, device)
-        
+
         # Create LBFGS optimizer for this epoch
         optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe")
 
