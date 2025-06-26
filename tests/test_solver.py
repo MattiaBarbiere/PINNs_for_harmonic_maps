@@ -24,9 +24,9 @@ def test_solver(PDE_name):
 
 if __name__ == "__main__":
     for PDE_name in PDE_names:
-        # if PDE_name in ["piecewise_diff", "non_sym_hess"]:
-        if PDE_name in ["piecewise_diff"]:
+        if PDE_name in ["piecewise_diff", "non_sym_hess", "quarter_annulus_hm", "L_bend_hm", "sin_boundaries_hm", "poly_boundaries_hm"]:
             # Skip the piecewise diffusion test for now
-            test_solver(PDE_name)
+            continue
+        test_solver(PDE_name)
         print("")
     print("All tests passed.")

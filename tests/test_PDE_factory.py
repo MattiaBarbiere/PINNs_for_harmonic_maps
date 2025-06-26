@@ -64,7 +64,7 @@ def boundary_condition(x, backend=torch):
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    return (x[:, 0] ** 3 - x[:, 1] ** 2 + x[:, 0] * x[:, 1]).reshape(-1, 1)
+    return (x[:, 0] ** 3 - x[:, 1] ** 2 + x[:, 0] * x[:, 1])
 
 # The diffusion matrix
 def diffusion_matrix(x, backend=torch):

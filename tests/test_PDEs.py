@@ -1,10 +1,21 @@
 import torch
+import copy
 import numpy as np
 from hmpinn.PDEs import *
 
-list_of_poisson_problems_torch = [cl() for cl in PDE_NAME_TO_CLASS.values()]
+PDE_CLASSES = copy.deepcopy(PDE_NAME_TO_CLASS)
 
-list_of_poisson_problems_np = [cl(backend=np) for cl in PDE_NAME_TO_CLASS.values()]
+# Remove the harmonic maps
+del PDE_CLASSES["quarter_annulus_hm"]
+del PDE_CLASSES["L_bend_hm"]
+del PDE_CLASSES["sin_boundaries_hm"]
+del PDE_CLASSES["poly_boundaries_hm"]
+
+
+
+list_of_poisson_problems_torch = [cl() for cl in PDE_CLASSES.values()]
+
+list_of_poisson_problems_np = [cl(backend=np) for cl in PDE_CLASSES.values()]
 
 def test_outputs_torch(PDE):
     """

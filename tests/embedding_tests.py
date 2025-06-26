@@ -1,4 +1,4 @@
-from hmpinn.core.embedding import Embedding_layer
+from hmpinn.embedding import Embedding_layer
 import torch
 
 #Algorithm for test the embedding layer from Kast et al. 2023
