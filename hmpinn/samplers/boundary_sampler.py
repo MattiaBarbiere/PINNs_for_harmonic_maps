@@ -1,109 +1,178 @@
-from hmpinn.samplers.base import BaseSampler
-import torch
-import itertools
+"""
+Boundary Domain Point Sampler.
 
-## For plotting
+This module provides functionality for sampling points from the boundary of
+rectangular domains using weighted grid-based sampling strategies.
+
+Classes:
+    BoundarySampler: Sampler for boundary domain points with edge-based weighting.
+"""
+
+import torch
+
+from hmpinn.samplers.base import BaseSampler
+
+# Plotting imports
 import seaborn as sns
 import matplotlib.pyplot as plt
-#Setting theme
+
+# Set plotting theme
 sns.set_theme(style="white", palette=None)
 
 class BoundarySampler(BaseSampler):
-    def __init__(self, x_interval = (0.0, 1.0), y_interval = (0.0, 1.0), x_grid = None, y_grid = None, default_batch_size=128, seed = None):
+    """
+    Sampler for boundary points of rectangular domains.
+    
+    This class implements weighted sampling from boundary edges of the domain,
+    where sampling probability can be proportional to edge length for better coverage
+    of domains with non-uniform grid spacing.
+    
+    Attributes:
+        edge_lengths: Lengths of each boundary edge for weighted sampling.
+        boundary_points: Precomputed boundary points for efficient sampling.
+    """
+    
+    def __init__(self, x_interval=(0.0, 1.0), y_interval=(0.0, 1.0), x_grid=None, y_grid=None, default_batch_size=128, seed=None):
         """
-        Parameters
-        x_interval (tuple or list of floats): The interval of the x axis to sample from. Default is (0.0, 1.0)
-        y_interval (tuple or list of floats): The interval of the y axis to sample from. Default is (0.0, 1.0)
-        x_grid (tuple or list or int or 1D torch.tensor): The values of x that will be used to form a grid. 
-                                                            If None, no grid along x will be used. 
-                                                            Default is None
-        y_grid (tuple or list or int or 1D torch.tensor): The values of y that will be used to form a grid. 
-                                                            If None, no grid along y will be used. 
-                                                            Default is None
-        default_batch_size (int): The number of points to sample. Default is 128
-        seed (int): The seed to use for the random number generator. Default is None
-            
+        Initialize the boundary domain sampler.
+
+        Parameters:
+            x_interval: tuple or list of floats, optional
+                Domain bounds in x-direction. Defaults to (0.0, 1.0).
+            y_interval: tuple or list of floats, optional
+                Domain bounds in y-direction. Defaults to (0.0, 1.0).
+            x_grid: int, list, tuple, or torch.Tensor, optional
+                Grid specification in x-direction. If None, uses interval endpoints. Defaults to None.
+            y_grid: int, list, tuple, or torch.Tensor, optional
+                Grid specification in y-direction. If None, uses interval endpoints. Defaults to None.
+            default_batch_size: int, optional
+                Default number of points to sample per batch. Defaults to 128.
+            seed: int, optional
+                Random seed for reproducible sampling. Defaults to None.
         """
         super().__init__(x_interval, y_interval, x_grid, y_grid, default_batch_size, seed)
+        
+        # Precompute boundary characteristics
+        self.edge_lengths = self.compute_edge_lengths()
+        self.boundary_points = self.generate_boundary_points()
     
-    def sample_batch(self, batch_size=None, weighted = True,  seed = None):
+    def compute_edge_lengths(self):
         """
-        Sample points from the boundary of the domain
+        Compute the total length of each boundary edge.
 
-        Parameters
-        batch_size (int): The number of points to sample. If None, the batch size set in the constructor will be used.
-        seed (int): The seed to use for the random number generator. This will override the seed set in the constructor. 
-                    Default is None (uses the seed set in the constructor)
-        weighted (bool): If True, the points are sampled from the grid with a probability proportional to the size of the interval.
-
-        Returns
-        torch.tensor: A tensor of shape (batch_size, 2) containing the x and y coordinates of the sampled points
+        Returns:
+            torch.Tensor
+                1D tensor containing the length of each boundary edge.
         """
-        # Set the batch size to default if not provided
+        # Calculate lengths of the four boundary edges
+        left_right_length = self.y_interval[1] - self.y_interval[0]
+        top_bottom_length = self.x_interval[1] - self.x_interval[0]
+        
+        # Return lengths for [left, right, bottom, top] edges
+        return torch.tensor([left_right_length, left_right_length, top_bottom_length, top_bottom_length])
+
+    def generate_boundary_points(self):
+        """
+        Generate all possible boundary points based on the grid.
+
+        Returns:
+            list
+                List of tensors, each containing boundary points for one edge.
+        """
+        boundary_edges = []
+        
+        # Left edge (x = x_min)
+        left_edge = torch.stack([
+            torch.full((len(self.y_grid),), self.x_interval[0]),
+            self.y_grid
+        ], dim=1)
+        boundary_edges.append(left_edge)
+        
+        # Right edge (x = x_max)
+        right_edge = torch.stack([
+            torch.full((len(self.y_grid),), self.x_interval[1]),
+            self.y_grid
+        ], dim=1)
+        boundary_edges.append(right_edge)
+        
+        # Bottom edge (y = y_min)
+        bottom_edge = torch.stack([
+            self.x_grid,
+            torch.full((len(self.x_grid),), self.y_interval[0])
+        ], dim=1)
+        boundary_edges.append(bottom_edge)
+        
+        # Top edge (y = y_max)
+        top_edge = torch.stack([
+            self.x_grid,
+            torch.full((len(self.x_grid),), self.y_interval[1])
+        ], dim=1)
+        boundary_edges.append(top_edge)
+        
+        return boundary_edges
+    
+    def sample_batch(self, batch_size=None, weighted=True, seed=None):
+        """
+        Sample points from the boundary of the domain.
+
+        Parameters:
+            batch_size: int, optional
+                Number of points to sample. If None, uses default_batch_size.
+            weighted: bool, optional
+                Whether to weight sampling by edge length. Defaults to True.
+            seed: int, optional
+                Random seed for this sampling operation. Overrides instance seed.
+
+        Returns:
+            torch.Tensor
+                Tensor of shape (batch_size, 2) containing sampled boundary points
+                with gradient tracking enabled.
+        """
+        # Use default batch size if not specified
         if batch_size is None:
             batch_size = self.default_batch_size
         else:
             batch_size = int(batch_size)
-        
-        # Set the seed if provided
+
+        # Update seed if provided
         self.change_seed(new_seed=seed)
         
-        # Compute the probabilities to sample the intervals
+        # Compute sampling probabilities for each edge
         if weighted:
-            probabilities_x = self.lengths / torch.sum(self.lengths)
-            probabilities_y = self.heights / torch.sum(self.heights)
+            probabilities = self.edge_lengths / torch.sum(self.edge_lengths)
         else:
-            probabilities_x = torch.ones(self.nx) / self.nx
-            probabilities_y = torch.ones(self.ny) / self.ny
+            # Equal probability for each edge
+            probabilities = torch.ones(4) / 4
         
-        # Choose number of points to projected onto x=0/x=1 and y=0/y=1
-        batch_size_x = batch_size // 2
-        batch_size_y = batch_size - batch_size_x
-
-        # Sample the x coordinates
-        x_indices = torch.multinomial(probabilities_x, batch_size_x, replacement=True)
-        x_coordinates = self.x_grid[x_indices]
-
-        # Sample the y coordinates
-        y_indices = torch.multinomial(probabilities_y, batch_size_y, replacement=True)
-        y_coordinates = self.y_grid[y_indices]
-
-        # Generate unifrom random numbers and perturb the coordinates
-        x_perturbation = torch.rand(batch_size_x) * self.lengths[x_indices]
-        x_coordinates = x_coordinates + x_perturbation
-        y_perturbation = torch.rand(batch_size_y) * self.heights[y_indices]
-        y_coordinates = y_coordinates + y_perturbation
-
-        # Generate tensor that projects the x_coordinates onto the y=y_interval[0] or y=y_interval[1] boundary with equal probability
-        y_boundary = torch.randint(0, 2, (batch_size_x,), device=x_coordinates.device)
-        y_boundary = self.y_interval[y_boundary]
-
-        # Generate tensor that projects the y_coordinates onto the x=x_interval[0] or x=x_interval[1] boundary with equal probability
-        x_boundary = torch.randint(0, 2, (batch_size_y,), device=y_coordinates.device)
-        x_boundary = self.x_interval[x_boundary]
-
-        # Project the x coordinates onto the y=0 or y=1 boundary and the y coordinates onto the x=0 or x=1 boundary
-        x_coordinates = torch.stack((x_coordinates, y_boundary), dim=-1)
-        y_coordinates = torch.stack((x_boundary, y_coordinates), dim=-1)
-
-        # Concatenate the x and y coordinates
-        result = torch.cat((x_coordinates, y_coordinates), dim=0)
+        # Sample which edges to select points from
+        edge_indices = torch.multinomial(probabilities, batch_size, replacement=True)
         
-        # Return a shuffled verison of the coordinates
-        return result[torch.randperm(result.shape[0])].requires_grad_(True)
+        # Collect sampled points
+        sampled_points = []
+        for edge_idx in edge_indices:
+            # Get points from the selected edge
+            edge_points = self.boundary_points[edge_idx.item()]
+            
+            # Randomly select a point from this edge
+            point_idx = torch.randint(0, len(edge_points), (1,))
+            sampled_points.append(edge_points[point_idx])
+        
+        # Stack all sampled points and enable gradient tracking
+        return torch.cat(sampled_points, dim=0).requires_grad_(True)
 
-        
-        
-    def plot_grid(self, show_random_sample = False, weighted_sample = True, seed = None):
+    def plot_grid(self, show_random_sample=False, weighted_sample=True, seed=None):
         """
-        Plots the grid and optionally samples from the grid
+        Visualize the boundary sampling grid and optionally show sample points.
 
         Parameters
-        show_random_sample (bool): If True, samples from the grid are shown. Default is False
-        weighted_sample (bool): If True, the samples are drawn from the grid with a probability proportional to 
-                                the area of the grid cell. Default is True
-        seed (int): The seed to use for the random number generator. This will override the seed set in the constructor.
-                    Default is None (uses the seed set in the constructor)
+            show_random_sample bool
+                If True, samples from the grid are shown. Default is False
+            weighted_sample bool
+                If True, the samples are drawn from the grid with a probability proportional to 
+                                    the area of the grid cell. Default is True
+            seed int
+                The seed to use for the random number generator. This will override the seed set in the constructor.
+                        Default is None (uses the seed set in the constructor)
         """
         x_grid = self.x_grid.detach().numpy()
         y_grid = self.y_grid.detach().numpy()
