@@ -13,8 +13,6 @@ from nutils.function import _dtypes
 
 import numpy as np
 from matplotlib import pyplot as plt
-# import matplotlib
-# matplotlib.use('Qt5Agg')  # For non-GUI rendering
 
 from nutils import function, mesh, solver
 
