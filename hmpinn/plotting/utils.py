@@ -1,37 +1,60 @@
+"""
+Plotting Utilities.
+
+This module provides utility functions for model evaluation and data preparation
+used in plotting and visualization tasks throughout the hmpinn library.
+
+Functions:
+    eval_model_and_function: Evaluate model and reference function on a grid.
+"""
+
 import torch
 
 def eval_model_and_function(model, func, resolution=100):
     """
-    Evaluates the model and the function given as input
+    Evaluate the model and reference function on a regular grid.
+    
+    Creates a uniform grid over the unit square [0,1]x[0,1] and evaluates
+    both the neural network model and a reference function for comparison.
 
     Parameters:
-    model: the model to evaluate or path to the model
-    func: the function to compare with
-    resolution: the resolution of the plot
+        model: torch.nn.Module or str
+            The neural network model to evaluate, or path to a saved model.
+        func: callable
+            The reference function to compare against the model.
+        resolution: int, optional
+            Number of grid points in each dimension. Defaults to 100.
 
     Returns:
-    None
+        tuple
+            A tuple containing:
+            - X: numpy.ndarray - X coordinates of the grid
+            - Y: numpy.ndarray - Y coordinates of the grid  
+            - F: numpy.ndarray - Model outputs on the grid
+            - U: numpy.ndarray - Reference function values on the grid
     """
-    # Bring everything to the cpu
+    # Ensure model is on CPU and in evaluation mode
     model = model.cpu()
     model.eval()
 
-    # Plotting the functions
+    # Create uniform grid over unit square
     x = torch.linspace(0, 1, resolution).to(torch.device('cpu'))
     y = torch.linspace(0, 1, resolution).to(torch.device('cpu'))
     X, Y = torch.meshgrid(x, y, indexing='xy')
+    
+    # Flatten grid coordinates for evaluation
     xy = torch.stack([X.flatten(), Y.flatten()], dim=1)
 
-    # Make sure model is in eval mode
-    model.eval()
-
-    # Compute the function values
-    F = model(xy)
+    # Evaluate model on grid points
+    with torch.no_grad():
+        F = model(xy)
     F = F.reshape(X.shape).detach().numpy()
+    
+    # Evaluate reference function on grid points
     U = func(xy).reshape(X.shape)
     
-    # Depending on the type of U, we need to convert it to numpy
-    if type(U) == torch.Tensor:
+    # Convert to numpy if needed
+    if isinstance(U, torch.Tensor):
         U = U.detach().numpy()
 
     return X, Y, F, U
