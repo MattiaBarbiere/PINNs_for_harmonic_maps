@@ -1,6 +1,6 @@
 #hydra imports
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 # project imports
 from hmpinn.utils.ml_utils import train
@@ -15,8 +15,11 @@ import torch
 
 @hydra.main(version_base=None, config_path="config_files", config_name="config_1.yaml")
 def main(cfg: DictConfig):
+    # Make the config into a normal dict
+    cfg_dict = OmegaConf.to_container(cfg, resolve=True)
+
     # Generate an instance of the Poisson equation depending on the input
-    poisson_eq = get_PDE_object(cfg.PDE.name)
+    poisson_eq = get_PDE_object(cfg_dict, backend=torch)
     model_class = get_model_class(cfg.model.type)
 
     # Create the model

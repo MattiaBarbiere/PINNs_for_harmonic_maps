@@ -4,7 +4,7 @@ from omegaconf import DictConfig
 
 # project imports
 from hmpinn.models import ModelV2
-from hmpinn.ML_utils import train
+from hmpinn.utils.ml_utils import train
 
 # poisson problem import
 from hmpinn.PDEs import *
@@ -30,8 +30,8 @@ def main(cfg: DictConfig):
 # def main():
     # Generate an instance of the Poisson equation depending on the input
     print("here")
-    
-    poisson_eq = get_PDE_object(cfg.poisson_equation)
+
+    poisson_eq = get_PDE_object({"PDE": {"name": cfg.poisson_equation, "PDE_kwargs": {}}}, backend=torch)
 
     # Create the model
     model = ModelV2(PDE=poisson_eq,
@@ -49,7 +49,7 @@ def main(cfg: DictConfig):
                                             seed=cfg.seed)
 
     # Save the errors and the model
-    torch.save(model, "model.pth")
+    torch.save(model.state_dict(), "model.pth")
 
     # Save the errors and losses
     torch.save(errors, "errors.pt")
