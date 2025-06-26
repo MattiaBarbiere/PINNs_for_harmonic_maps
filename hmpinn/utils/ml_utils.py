@@ -188,8 +188,10 @@ def train(model,
     """
     # Select and report device
     if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA")
+        # device = torch.device("cuda")
+        # print("Using CUDA")
+        device = torch.device("cpu")
+        print("Using CPU")
     else:
         device = torch.device("cpu")
         print("Using CPU")
@@ -239,7 +241,7 @@ def train(model,
         X, X_boundary = sample_domain_points(interior_sampler, boundary_sampler, device)
         
         # Create LBFGS optimizer for this epoch
-        optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe", lr=1e-5)
+        optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe")
 
         # Compute loss for tracking
         loss = loss_fn(model(X), X, model(X_boundary), X_boundary)

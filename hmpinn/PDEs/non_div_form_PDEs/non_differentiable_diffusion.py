@@ -94,7 +94,7 @@ def hessian_u(x, backend=torch):
         
         exp_term = backend.exp(-10 * norm(x, backend=backend)[0]**2)
         
-        hessian = fn.asarray([
+        hessian = fn.asarray([[
             [
                 -20 * exp_term + 400 * x_0**2 * exp_term, 
                 400 * x_0 * x_1 * exp_term
@@ -103,7 +103,7 @@ def hessian_u(x, backend=torch):
                 400 * x_0 * x_1 * exp_term, 
                 -20 * exp_term + 400 * x_1**2 * exp_term
             ],
-        ])
+        ]])
         return hessian
 
     x_0 = x[:, 0]
@@ -144,10 +144,10 @@ def diffusion_matrix(x, model=None, backend=torch):
         x_0 = x[0, 0]
         x_1 = x[0, 1]
         
-        diffusion = fn.asarray([
+        diffusion = fn.asarray([[
             [1, 0],
             [0, (x_0**2 * x_1**2)**(1/3) + 1],
-        ])
+        ]])
         return diffusion
 
     # Ensure backend compatibility
