@@ -1,9 +1,6 @@
 """
 The author of this code is Jochen Hinz.
 """
-
-
-
 from typing import Sequence
 
 import numpy as np

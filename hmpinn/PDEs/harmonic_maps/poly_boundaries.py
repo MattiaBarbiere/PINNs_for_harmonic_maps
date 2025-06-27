@@ -1,42 +1,72 @@
+"""
+Polynomial Boundaries Harmonic Map.
+
+This module provides a harmonic map PDE implementation with asymmetric polynomial
+boundary conditions that create complex deformations of the unit square boundary.
+
+Classes:
+    PolynomialBoundariesHM: Harmonic map with asymmetric polynomial boundary deformations.
+"""
+
+import torch
+from functools import partial
+
 from hmpinn.PDEs.harmonic_maps import hm_diffusion_matrix, f_hm
 from hmpinn.PDEs.residuals.non_div_form_residual import NonDivFormResidual
 from hmpinn.PDEs.boundary_conditions.dirichlet import DirichletBC
 from hmpinn.PDEs.solutions.without_solution import WithoutSolution
 from hmpinn.PDEs.utils import backend_to_str
-import torch
-from functools import partial
 
 def polynomial_boundaries_BC(x, a_left=0.3, a_right=0.1, b_bottom=0.2, b_top=0.4, degree=3, backend=torch):
     """
-    Boundary made of asymmetric polynomial functions that deform the unit square
+    Asymmetric polynomial boundary condition function.
+    
+    Creates complex boundary deformations using different polynomial functions
+    for each boundary edge, resulting in asymmetric domain shapes.
 
     Parameters:
-        x (torch.Tensor): 2D tensor of shape (batch_size, 2)
-        a_left (float): Amplitude of left boundary deformation
-        a_right (float): Amplitude of right boundary deformation
-        b_bottom (float): Amplitude of bottom boundary deformation  
-        b_top (float): Amplitude of top boundary deformation
-        degree (int): Degree of polynomial (3 for cubic, 4 for quartic)
-        backend: Backend library to use
+        x: torch.Tensor
+            Boundary coordinates of shape (batch_size, 2).
+        a_left: float, optional
+            Amplitude of left boundary deformation. Defaults to 0.3.
+        a_right: float, optional
+            Amplitude of right boundary deformation. Defaults to 0.1.
+        b_bottom: float, optional
+            Amplitude of bottom boundary deformation. Defaults to 0.2.
+        b_top: float, optional
+            Amplitude of top boundary deformation. Defaults to 0.4.
+        degree: int, optional
+            Degree of polynomial (3 for cubic, 4 for quartic). Defaults to 3.
+        backend: torch, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-        torch.Tensor: 2D tensor of shape (batch_size, 2) with values on the boundary
+        torch.Tensor
+            Transformed boundary coordinates with asymmetric polynomial deformations.
+            
+    Raises:
+        AssertionError: If input coordinates are not on the unit square boundary.
+        ValueError: If degree is not 3 or 4.
     """
     x_input = x[:, 0]
     y_input = x[:, 1]
 
-    # Check that the input is on the boundary of the [0,1]x[0,1] square
-    assert backend.all((x_input <= 1) & (x_input >= 0) & (y_input <= 1) & (y_input >= 0)), f"Input must be within the [0,1]x[0,1] square"
-    assert backend.all((x_input == 0) | (x_input == 1) | (y_input == 0) | (y_input == 1)), f"Input must on the boundary of the [0,1]x[0,1] square"    
+    # Validate input is within unit square
+    assert backend.all((x_input <= 1) & (x_input >= 0) & (y_input <= 1) & (y_input >= 0)), \
+        f"Input must be within the [0,1]x[0,1] square"
     
-    # Different polynomial deformation functions for asymmetry
+    # Validate input is on the boundary
+    assert backend.all((x_input == 0) | (x_input == 1) | (y_input == 0) | (y_input == 1)), \
+        f"Input must be on the boundary of the [0,1]x[0,1] square"    
+    
+    # Define different polynomial deformation functions for asymmetry
     if degree == 3:
         # Asymmetric cubic polynomials
         poly_left = y_input**2 * (1 - y_input)  # Different shape for left
         poly_right = y_input * (1 - y_input)**2  # Different shape for right
         poly_bottom = x_input * (1 - x_input)**2  # Different shape for bottom
         poly_top = x_input**2 * (1 - x_input)  # Different shape for top
-    if degree == 4:
+    elif degree == 4:
         # Asymmetric quartic polynomials
         poly_left = y_input**2 * (1 - y_input) * (1 - 0.5*y_input)
         poly_right = y_input * (1 - y_input)**2 * (0.5 + y_input)
@@ -68,36 +98,56 @@ def polynomial_boundaries_BC(x, a_left=0.3, a_right=0.1, b_bottom=0.2, b_top=0.4
     
     return backend.stack((x_out, y_out), dim=-1)
 
-
 class PolynomialBoundariesHM(NonDivFormResidual, DirichletBC, WithoutSolution):
+    """
+    Harmonic map PDE with asymmetric polynomial boundary conditions.
+    
+    This class implements a harmonic map where each boundary of the unit square
+    is deformed using different polynomial functions, creating complex asymmetric shapes.
+    """
+    
     def __init__(self, a_left=0.3, a_right=0.1, b_bottom=0.2, b_top=0.4, degree=3, backend=torch):
         """
-        Harmonic map PDE with asymmetric polynomial boundaries.
+        Initialize the harmonic map with asymmetric polynomial boundaries.
 
         Parameters:
-        a_left (float): Amplitude of left boundary deformation
-        a_right (float): Amplitude of right boundary deformation
-        b_bottom (float): Amplitude of bottom boundary deformation
-        b_top (float): Amplitude of top boundary deformation
-        degree (int): Degree of polynomial deformation
-        backend (torch): The backend library to use (default is torch)
+            a_left: float, optional
+                Amplitude of left boundary deformation. Defaults to 0.3.
+            a_right: float, optional
+                Amplitude of right boundary deformation. Defaults to 0.1.
+            b_bottom: float, optional
+                Amplitude of bottom boundary deformation. Defaults to 0.2.
+            b_top: float, optional
+                Amplitude of top boundary deformation. Defaults to 0.4.
+            degree: int, optional
+                Degree of polynomial deformation (3 or 4). Defaults to 3.
+            backend: torch, optional
+                Backend library to use. Defaults to torch.
         """
-        # Add the parameters to the class
+        # Store boundary parameters
         self.a_left = a_left
         self.a_right = a_right
         self.b_bottom = b_bottom
         self.b_top = b_top
         self.degree = degree
 
-        # Use partial to bind parameters
+        # Create partial functions with bound parameters
         f_partial = partial(f_hm, backend=backend)
         BC_partial = partial(polynomial_boundaries_BC, a_left=a_left, a_right=a_right, 
                            b_bottom=b_bottom, b_top=b_top, degree=degree, backend=backend)
 
+        # Initialize parent classes
         NonDivFormResidual.__init__(self, f_partial, hm_diffusion_matrix, backend=backend)
         DirichletBC.__init__(self, BC_partial, backend=backend)
         WithoutSolution.__init__(self, backend=backend)
 
     def __repr__(self):
+        """
+        String representation of the PolynomialBoundariesHM class.
+
+        Returns:
+            str
+                String representation including all parameters.
+        """
         backend_str = backend_to_str(self.backend)
         return f"PolynomialBoundariesHM(a_left={self.a_left}, a_right={self.a_right}, b_bottom={self.b_bottom}, b_top={self.b_top}, degree={self.degree}, backend={backend_str})"

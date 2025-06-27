@@ -1,116 +1,140 @@
-import yaml
+"""
+YAML Utilities for Model Loading and Configuration.
+
+This module provides utilities for loading trained models and configurations
+from YAML files, supporting all model versions and PDE types.
+
+Functions:
+    read_yaml_file: Read and parse YAML configuration files.
+    load_model_v0: Load ModelV0 with embedding layer support.
+    load_model_v1: Load ModelV1 with mandatory embedding layer.
+    load_model_v2: Load ModelV2 with configurable activation functions.
+    load_model: Automatically detect and load any model version.
+    load_PDE_ymal: Extract PDE parameters from YAML.
+    load_solver_ymal: Extract solver parameters from YAML.
+    load_train_ymal: Extract training parameters from YAML.
+    load_model_ymal: Extract model parameters from YAML.
+    PDE_from_yaml: Construct PDE class from YAML specification.
+"""
+
 import os
-from hmpinn.models import *
+import yaml
 import torch
+
+from hmpinn.models import *
 from hmpinn.utils.utils import get_PDE_class, get_PDE_object, organise_dict
 from hmpinn.PDEs.PDE_factory import construct_PDE_class
 
 def read_yaml_file(path):
     """
-    Function that opens the yaml file and returns the parameters
+    Read and parse a YAML configuration file from a model directory.
+    
+    Parameters:
+        path: str
+            Path to the model directory containing .hydra/config.yaml.
+    
+    Returns:
+        dict
+            Parsed and organized configuration dictionary.
+            
+    Raises:
+        yaml.YAMLError: If YAML file cannot be parsed.
     """
-    # Get the absolute path
+    # Get the absolute path to the config file
     path = os.path.abspath(path)
-    with open(os.path.join(path, ".hydra", "config.yaml"), 'r') as stream:
+    config_path = os.path.join(path, ".hydra", "config.yaml")
+    
+    with open(config_path, 'r') as stream:
         try:
             params = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
-            print(exc)
+            print(f"Error loading YAML file: {exc}")
+            raise
     
-    # Organise the dict of parameters
+    # Organize the dictionary for standardized access
     return organise_dict(params)
-
-# def get_PDE_name_from_params(params):
-#     """
-#     Function that gets the PDE name from the parameters
-#     """
-#     if 'PDE' in params:
-#         PDE_name = params['PDE']["name"]
-#     elif "name" in params:
-#         PDE_name = params["name"]
-#     elif 'poisson_equation' in params:
-#         PDE_name = params['poisson_equation']
-#     else:
-#         warnings.warn("The poisson_equation parameter is not found in the yaml file. Using the default NonSymDiffusion")
-#         PDE_name = "diff"
-    
-#     return PDE_name
 
 def load_model_v0(path, backend=torch):
     """
-    Function that loads the model and the errors for model v0
+    Load ModelV0 with optional embedding layer from saved files.
 
     Parameters:
-    path (str): The path to the model directory.
-    backend (torch or np): The backend to use for the model. Default is torch.
+        path: str
+            Path to the model directory.
+        backend: torch or np, optional
+            Backend to use for the model. Defaults to torch.
 
     Returns:
-    model (ModelV0): The loaded model.
-    errors (torch.Tensor): The loaded errors.
-    grad_errors (torch.Tensor): The loaded gradient errors.
-    loss (torch.Tensor): The loaded loss.
-    BC_loss (torch.Tensor): The loaded boundary condition loss.
+        tuple
+            Tuple containing (model, errors, grad_errors, loss, BC_loss).
     """
-    # Open the yaml file to read the parameters
+    # Read configuration parameters
     params = read_yaml_file(path)
     
-    # Extract the parameters
+    # Extract model-specific parameters
     embeddings_per_dim = params["model"]["model_kwargs"]['embeddings_per_dim']
     hidden_layers = params["model"]["model_kwargs"]['nodes_hidden_layers']
     has_embedding_layer = params["model"]["model_kwargs"]['has_embedding_layer']
 
-    # try:
-    #     embedding_layer = params['embedding_layer']
-    # except:
-    #     embedding_layer = params["has_embedding_layer"]
-
+    # Get PDE object with specified backend
     PDE_obj = get_PDE_object(params, backend=backend)
 
-    # Define and load the model
+    # Initialize and load the model
     model = ModelV0(PDE_obj, 
                      embedding_size_per_dim=embeddings_per_dim, 
                      has_embedding_layer=has_embedding_layer,
                      nodes_hidden_layers=hidden_layers)
     model.load_state_dict(torch.load(path + "/model.pt", map_location=torch.device('cpu')))
 
-    # Load errors
+    # Load training history
     errors = torch.load(path + "/errors.pt")
     grad_errors = torch.load(path + "/grad_errors.pt")
     loss = torch.load(path + "/loss.pt")
 
-    # Check is the file has BC loss
+    # Load boundary condition loss if available
     try:
         BC_loss = torch.load(path + "/BC_loss.pt")
-    except:
+    except FileNotFoundError:
         BC_loss = None
 
     return model, errors, grad_errors, loss, BC_loss
 
 def load_model_v1(path, backend=torch):
     """
-    Function that loads the model and the errors for model v1
+    Load ModelV1 with mandatory embedding layer from saved files.
+
+    Parameters:
+        path: str
+            Path to the model directory.
+        backend: torch or np, optional
+            Backend to use for the model. Defaults to torch.
+
+    Returns:
+        tuple
+            Tuple containing (model, errors, grad_errors, loss, BC_loss).
     """
-    # Open the yaml file to read the parameters
+    # Read configuration parameters
     params = read_yaml_file(path)
     
-    # Extract the parameters
+    # Extract model-specific parameters
     embeddings_per_dim = params["model"]["model_kwargs"]['embeddings_per_dim']
     hidden_layers = params["model"]["model_kwargs"]['nodes_hidden_layers']
 
+    # Get PDE object with specified backend
     PDE_obj = get_PDE_object(params, backend=backend)
 
-    # Define and load the model
+    # Initialize and load the model
     model = ModelV1(PDE_obj, 
                      embedding_size_per_dim=embeddings_per_dim,
                      nodes_hidden_layers=hidden_layers)
     model.load_state_dict(torch.load(path + "/model.pt", map_location=torch.device('cpu')))
 
-    # Load errors
+    # Load training history
     errors = torch.load(path + "/errors.pt")
     grad_errors = torch.load(path + "/grad_errors.pt")
     loss = torch.load(path + "/loss.pt")
 
-    # Check is the file has BC loss
+    # Load boundary condition loss if available
     try:
         BC_loss = torch.load(path + "/BC_loss.pt")
     except:
@@ -118,34 +142,44 @@ def load_model_v1(path, backend=torch):
 
     return model, errors, grad_errors, loss, BC_loss
 
-
 def load_model_v2(path, backend=torch):
     """
-    Function that loads the model and the errors for model v1
+    Load ModelV2 with configurable activation functions from saved files.
+
+    Parameters:
+        path: str
+            Path to the model directory.
+        backend: torch or np, optional
+            Backend to use for the model. Defaults to torch.
+
+    Returns:
+        tuple
+            Tuple containing (model, errors, grad_errors, loss, BC_loss).
     """
-    # Open the yaml file to read the parameters
+    # Read configuration parameters
     params = read_yaml_file(path)
     
-    # Extract the parameters
+    # Extract model-specific parameters
     activation_function = params["model"]["model_kwargs"]['activation_function']
     hidden_layers = params["model"]["model_kwargs"]['nodes_hidden_layers']
     output_dim = params["model"]["model_kwargs"]['output_dim']
 
+    # Get PDE object with specified backend
     PDE_obj = get_PDE_object(params, backend=backend)
 
-    # Define and load the model
+    # Initialize and load the model
     model = ModelV2(PDE_obj, 
                      nodes_hidden_layers=hidden_layers,
                      activation_function=activation_function,
                      output_dim=output_dim)
     model.load_state_dict(torch.load(path + "/model.pt", map_location=torch.device('cpu')))
 
-    # Load errors
+    # Load training history
     errors = torch.load(path + "/errors.pt")
     grad_errors = torch.load(path + "/grad_errors.pt")
     loss = torch.load(path + "/loss.pt")
 
-    # Check is the file has BC loss
+    # Load boundary condition loss if available
     try:
         BC_loss = torch.load(path + "/BC_loss.pt")
     except:
@@ -153,17 +187,28 @@ def load_model_v2(path, backend=torch):
 
     return model, errors, grad_errors, loss, BC_loss
 
-# Function to load the model
 def load_model(path, backend=torch):
     """
-    Function that loads the model and the errors for any model
-    """
-    # Open the yaml file to read the parameters
-    params = read_yaml_file(path)
+    Automatically detect and load any model version from saved files.
 
-    # Extract the model type
+    Parameters:
+        path: str
+            Path to the model directory.
+        backend: torch or np, optional
+            Backend to use for the model. Defaults to torch.
+
+    Returns:
+        tuple
+            Tuple containing (model, errors, grad_errors, loss, BC_loss).
+            
+    Raises:
+        ValueError: If model type is not recognized.
+    """
+    # Read configuration to determine model type
+    params = read_yaml_file(path)
     model_type = params["model"]["type"]
 
+    # Dispatch to appropriate loader based on model type
     if model_type == "v0":
         return load_model_v0(path, backend=backend)
     elif model_type == "v1":
@@ -171,103 +216,117 @@ def load_model(path, backend=torch):
     elif model_type == "v2":
         return load_model_v2(path, backend=backend)
     else:
-        ValueError(f"The model type '{model_type}' is not recognized. Supported types are: v0, v1, v2.")
+        raise ValueError(f"The model type '{model_type}' is not recognized. Supported types are: v0, v1, v2.")
 
 def load_PDE_ymal(file_path: str):
     """
-    Gets the PDE parameters from the YAML file.
+    Extract PDE parameters from YAML configuration file.
 
     Parameters:
-    file_path (str): The path to the YAML file.
+        file_path: str
+            Path to the YAML file.
 
     Returns:
-    dict: The contents of the YAML file as a dictionary.
+        dict
+            PDE configuration dictionary.
     """
     data = read_yaml_file(file_path)
     return data["PDE"]
 
 def load_solver_ymal(file_path: str):
     """
-    Gets the solver parameters from the YAML file.
+    Extract solver parameters from YAML configuration file.
 
     Parameters:
-    file_path (str): The path to the YAML file.
+        file_path: str
+            Path to the YAML file.
 
     Returns:
-    dict: The contents of the YAML file as a dictionary.
+        dict
+            Solver configuration dictionary.
     """
     data = read_yaml_file(file_path)
     return data["solver"]
 
 def load_train_ymal(file_path: str):
     """
-    Gets the training parameters from the YAML file.
+    Extract training parameters from YAML configuration file.
 
     Parameters:
-    file_path (str): The path to the YAML file.
+        file_path: str
+            Path to the YAML file.
 
     Returns:
-    dict: The contents of the YAML file as a dictionary.
+        dict
+            Training configuration dictionary.
     """
     data = read_yaml_file(file_path)
     return data["train"]
 
 def load_model_ymal(file_path: str):
     """
-    Gets the model parameters from the YAML file.
+    Extract model parameters from YAML configuration file.
 
     Parameters:
-    file_path (str): The path to the YAML file.
+        file_path: str
+            Path to the YAML file.
 
     Returns:
-    dict: The contents of the YAML file as a dictionary.
+        dict
+            Model configuration dictionary.
     """
     data = read_yaml_file(file_path)
     return data["model"]
     
 def PDE_from_yaml(yaml_dict: dict):
     """
-    Constructs the PDE class from the YAML dictionary.
+    Construct PDE class from YAML dictionary specification.
+    
+    Creates a PDE class either from predefined implementations or by
+    dynamically constructing one from mathematical expressions.
 
     Parameters:
-    yaml_dict (dict): The YAML dictionary containing the PDE parameters.
+        yaml_dict: dict
+            YAML dictionary containing PDE parameters and mathematical expressions.
 
     Returns:
-    object: The constructed PDE class.
+        class
+            Constructed PDE class ready for instantiation.
     """
-    # If the dict has a key "name" we try to use an already implemented PDE class
+    # If the dict has a "name" key, use a predefined PDE class
     if "name" in yaml_dict:
         return get_PDE_class(yaml_dict["name"])
 
-    # Check if the give PDE is in divergence form
+    # Otherwise, construct PDE dynamically from mathematical expressions
     is_in_divergence_form = yaml_dict["is_in_divergence_form"]
 
-    # Get the source from yaml_dict
+    # Define source term function from string expression
     def f(x: torch.Tensor, backend):
         return eval(yaml_dict["f"])
     
-    # Get the diffusion matrix from yaml_dict
+    # Define diffusion matrix function from string expression
     def diffusion_matrix(x: torch.Tensor, backend):
         return eval(yaml_dict["diffusion_matrix"])
     
-    # Get the boundary condition from yaml_dict
+    # Define boundary condition function from string expression
     def BC(x: torch.Tensor, backend):
         return eval(yaml_dict["BC"])
     
-    # Get the analytical solution if it exists
+    # Define analytical solution if provided
     if yaml_dict["u"] == "None":
         u = None
     else:
         def u(x: torch.Tensor, backend):
             return eval(yaml_dict["u"])
     
-    # Get the gradient of the analytical solution if it exists
+    # Define gradient of analytical solution if provided
     if yaml_dict["grad_u"] == "None":
         grad_u = None
     else:
         def grad_u(x: torch.Tensor, backend):
             return eval(yaml_dict["grad_u"])
     
+    # Construct and return the PDE class
     return construct_PDE_class(
         f=f,
         diffusion_matrix=diffusion_matrix,
@@ -276,4 +335,4 @@ def PDE_from_yaml(yaml_dict: dict):
         grad_u=grad_u,
         is_in_divergence_form=is_in_divergence_form,
     )
-    
+

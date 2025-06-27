@@ -1,71 +1,90 @@
+"""
+Non-Differentiable Diffusion PDE.
+
+This module provides a PDE implementation with a diffusion matrix containing
+non-differentiable components (fractional powers) and Gaussian analytical solution.
+
+Classes:
+    NonDifferentiableDiffusion: PDE with non-differentiable diffusion matrix.
+"""
+
+import torch
+from functools import partial
+
+import nutils.function as fn
+
 from hmpinn.PDEs.residuals.non_div_form_residual import NonDivFormResidual
 from hmpinn.PDEs.boundary_conditions.dirichlet import DirichletBC
 from hmpinn.PDEs.solutions.with_solution import WithSolution
-import torch
-from functools import partial
 from hmpinn.PDEs.utils import ensure_backend, check_backend, stack, backend_to_str, norm, frobenius_prod
-import nutils.function as fn
 
-
-# The analytical solution
 def u(x, backend=torch):
     """
-    Solution u(x) to the Poisson equation.
+    Gaussian analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor with values in the range [0, 1]
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2) with values in range [0, 1].
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of u(x)
+        torch.Tensor
+            Gaussian function centered at origin with rapid decay.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    # Transform the input into the range [-1, 1]
+    # Transform input to range [-1, 1]
     x = 2 * x - 1
     return backend.exp(-10 * norm(x, backend=backend)**2)
 
 def grad_u(x, backend=torch):
     """
-    Gradient of the analytical solution u(x) to the Poisson equation.
+    Gradient of the Gaussian analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor with values in the range [0, 1]
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2) with values in range [0, 1].
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Gradient of u(x)
+        torch.Tensor
+            Gradient of the Gaussian function.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
     
-    # Transform the input into the range [-1, 1]
+    # Transform input to range [-1, 1]
     x = 2 * x - 1
 
-    grad_x = -20 * x[:, 0] * backend.exp(-10 * norm(x, backend=backend)**2)
-    grad_y = -20 * x[:, 1] * backend.exp(-10 * norm(x, backend=backend)**2)
-    return stack([grad_x, grad_y], dim = 1, backend=backend)
+    exp_term = backend.exp(-10 * norm(x, backend=backend)**2)
+    grad_x = -20 * x[:, 0] * exp_term
+    grad_y = -20 * x[:, 1] * exp_term
+    return stack([grad_x, grad_y], dim=1, backend=backend)
 
 def hessian_u(x, backend=torch):
     """
-    Hessian of the analytical solution u(x) to the Poisson equation.
+    Hessian matrix of the Gaussian analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor with values in the range [0, 1]
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2) with values in range [0, 1].
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Hessian of u(x)
+        torch.Tensor or fn.Array
+            Hessian matrix of the Gaussian function.
     """
-
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    # Transform the input into the range [-1, 1]
+    # Transform input to range [-1, 1]
     x = 2 * x - 1
     
     if isinstance(x, fn.Array):
@@ -73,49 +92,51 @@ def hessian_u(x, backend=torch):
         x_0 = x[0, 0]
         x_1 = x[0, 1]
         
-        # Create the symbolic diffusion matrix
+        exp_term = backend.exp(-10 * norm(x, backend=backend)[0]**2)
+        
         hessian = fn.asarray([[
             [
-                -20 * backend.exp(-10 * norm(x, backend=backend)[0]**2) + 400 * x_0**2 * backend.exp(-10 * norm(x, backend=backend)[0]**2), 
-                400 * x_0 * x_1 * backend.exp(-10 * norm(x, backend=backend)[0]**2)
-             ],
+                -20 * exp_term + 400 * x_0**2 * exp_term, 
+                400 * x_0 * x_1 * exp_term
+            ],
             [
-                400 * x_0 * x_1 * backend.exp(-10 * norm(x, backend=backend)[0]**2), 
-                -20 * backend.exp(-10 * norm(x, backend=backend)[0]**2) + 400 * x_1**2 * backend.exp(-10 * norm(x, backend=backend)[0]**2)
+                400 * x_0 * x_1 * exp_term, 
+                -20 * exp_term + 400 * x_1**2 * exp_term
             ],
         ]])
-
         return hessian
 
     x_0 = x[:, 0]
     x_1 = x[:, 1]
+    exp_term = backend.exp(-10 * norm(x, backend=backend)**2)
 
     # Construct Hessian matrix
     batch_size = x.shape[0]
     hessian = backend.empty((batch_size, 2, 2), device=x.device, dtype=x.dtype)
-    hessian[:, 0, 0] = -20 * backend.exp(-10 * norm(x, backend=backend)**2) + 400 * x_0**2 * backend.exp(-10 * norm(x, backend=backend)**2)
-    hessian[:, 1, 1] = -20 * backend.exp(-10 * norm(x, backend=backend)**2) + 400 * x_1**2 * backend.exp(-10 * norm(x, backend=backend)**2)
-    hessian[:, 0, 1] = 400 * x_0 * x_1 * backend.exp(-10 * norm(x, backend=backend)**2)
+    hessian[:, 0, 0] = -20 * exp_term + 400 * x_0**2 * exp_term
+    hessian[:, 1, 1] = -20 * exp_term + 400 * x_1**2 * exp_term
+    hessian[:, 0, 1] = 400 * x_0 * x_1 * exp_term
     hessian[:, 1, 0] = hessian[:, 0, 1]
     
     return hessian
 
-# The diffusion matrix
 def diffusion_matrix(x, model=None, backend=torch):
     """
-    Diffusion matrix
+    Diffusion matrix with non-differentiable fractional power component.
 
     Parameters:
-    x (torch.Tensor): Input tensor with values in the range [0, 1]
-    model (torch.nn.Module, optional): Model that is trying to solve the pde. This is used only for PDEs that have
-                                        a diffusion matrix that depends on the true solution (default is None).
-                                        Not used in this case.
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2) with values in range [0, 1].
+        model: torch.nn.Module, optional
+            Model instance (unused in this implementation).
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    torch.Tensor: Diffusion matrix of size (batch_size, 2, 2)
+        torch.Tensor or fn.Array
+            Diffusion matrix with non-differentiable component.
     """
-    # Transform the input into the range [-1, 1]
+    # Transform input to range [-1, 1]
     x = 2 * x - 1
 
     if isinstance(x, fn.Array):
@@ -123,15 +144,13 @@ def diffusion_matrix(x, model=None, backend=torch):
         x_0 = x[0, 0]
         x_1 = x[0, 1]
         
-        # Create the symbolic diffusion matrix
         diffusion = fn.asarray([[
             [1, 0],
-            [0, (x_0**2 * x_1 ** 2)**(1/3) + 1],
+            [0, (x_0**2 * x_1**2)**(1/3) + 1],
         ]])
-
         return diffusion
 
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
     
@@ -146,19 +165,21 @@ def diffusion_matrix(x, model=None, backend=torch):
     diffusion[:, 1, 1] = (x_0**2 * x_1**2)**(1/3) + 1
     return diffusion
 
-# The source term
 def f(x, backend=torch):
     """
-    Source term f(x) for the Poisson equation.
+    Source term computed as Frobenius product of diffusion and Hessian.
 
     Parameters:
-    x (torch.Tensor): Input tensor with values in the range [0, 1]
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Input coordinates of shape (batch_size, 2) with values in range [0, 1].
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of f(x)
+        torch.Tensor
+            Source term values at the given coordinates.
     """
-    # Ensure the backend is set correctlys
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
@@ -166,39 +187,61 @@ def f(x, backend=torch):
 
 def boundary_condition(x, backend=torch):
     """
-    Boundary condition u(x)
+    Boundary condition matching the Gaussian analytical solution.
 
     Parameters:
-    x (torch.Tensor): Input tensor of size (batch_size, 2) with values in the range [0, 1]
-    backend (torch or np): Backend library to use (default is torch)
+        x: torch.Tensor
+            Boundary coordinates of shape (batch_size, 2) with values in range [0, 1].
+        backend: torch or np, optional
+            Backend library to use. Defaults to torch.
 
     Returns:
-    float: Value of the boundary condition of size (batch_size, 1)
+        torch.Tensor
+            Boundary condition values from the Gaussian function.
     """
-    # Ensure the backend is set correctly
+    # Ensure backend compatibility
     if check_backend(backend):
         x = ensure_backend(x, backend)
 
-    # Transform the input into the range [-1, 1]
+    # Transform input to range [-1, 1]
     x = 2 * x - 1
-
     return backend.exp(-10 * norm(x, backend=backend)**2)
   
 class NonDifferentiableDiffusion(NonDivFormResidual, DirichletBC, WithSolution):
     """
-    SymDiffusion class for the diffusion equation with Dirichlet boundary conditions.
+    PDE with non-differentiable diffusion matrix and Gaussian solution.
+    
+    This class implements a PDE where the diffusion matrix contains fractional
+    powers that are not differentiable, creating numerical challenges.
     """
+    
     def __init__(self, backend=torch):
+        """
+        Initialize the non-differentiable diffusion PDE.
+
+        Parameters:
+            backend: torch or np, optional
+                Backend library to use for computations. Defaults to torch.
+        """
+        # Create partial functions with bound backend
         f_partial = partial(f, backend=backend)
         u_partial = partial(u, backend=backend)
         grad_u_partial = partial(grad_u, backend=backend)
         diffusion_matrix_partial = partial(diffusion_matrix, backend=backend)
         boundary_condition_partial = partial(boundary_condition, backend=backend)
 
+        # Initialize parent classes
         NonDivFormResidual.__init__(self, f_partial, diffusion_matrix_partial, backend=backend)
         DirichletBC.__init__(self, boundary_condition_partial, backend=backend)
         WithSolution.__init__(self, u_partial, grad_u_partial, backend=backend)
 
     def __repr__(self):
+        """
+        String representation of the NonDifferentiableDiffusion class.
+
+        Returns:
+            str
+                String representation including backend information.
+        """
         backend_str = backend_to_str(self.backend)
         return f"NonDifferentiableDiffusion(backend={backend_str})"

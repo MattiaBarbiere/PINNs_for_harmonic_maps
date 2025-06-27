@@ -1,126 +1,143 @@
-'''
-These are slight modifications of the hmpinn.utils.ml_utils module to fit the parametric harmonic maps model.
-'''
+"""
+Machine Learning Utilities for Parametric Harmonic Maps.
+
+This module provides specialized training utilities for parametric harmonic map models,
+adapting the standard hmpinn training functions to handle parameter-dependent PDEs.
+
+Functions:
+    train_parametric_hm: Main training function for parametric harmonic map models.
+"""
 
 import torch
 import tqdm
+
 from hmpinn.utils.ml_utils import init_samplers, init_optimizers, construct_loss_fn, sample_domain_points
 
-
-
 def train_parametric_hm(model,
-          batch_size=128, 
-          n_epochs=12000, 
-          optimizer="Adam",
-          optimizer_threshold = 7000,
-          loss_BC_weight = 20,
-          save_BC_loss = True,
-          boundary_batch_ratio = 1,
-          seed=None,
-          interior_sampler=None,
-          boundary_sampler=None):
+                       batch_size=128, 
+                       n_epochs=12000, 
+                       optimizer="Adam",
+                       optimizer_threshold=7000,
+                       loss_BC_weight=20,
+                       save_BC_loss=True,
+                       boundary_batch_ratio=1,
+                       seed=None,
+                       interior_sampler=None,
+                       boundary_sampler=None):
     """
-    Train the model so that the laplacian of the model is close to the target function.
+    Train a parametric harmonic map model using Physics-Informed Neural Networks.
+    
+    This function implements a two-stage training approach specifically designed
+    for parametric harmonic maps, where PDE parameters are treated as additional
+    network inputs, enabling learning across parameter spaces.
 
     Parameters:
-    model (torch.nn.Module): The model to train
-    batch_size (int): The size of each batch. If sampler objects are given this will override the default batch size in the samplers
-    n_epochs (int): Number of epochs to train
-    optimizer (torch.optim): The optimizer to use (default is Adam)
-    optimizer_threshold (int): The epoch to switch to LBFGS
-    loss_BC_weight (float): The weight of the boundary condition on the loss function.
-                            If equal to 0, the loss function will not include the boundary condition.
-                            If the model has an embedding layer, this will be ignored
-    save_BC_loss (bool): If True, the boundary condition loss will be saved
-    boundary_batch_ratio (float): The ratio of the batch size for the boundary points to the batch size for the interior points.
-                        If the model has an embedding layer, this will be ignored
-    seed (int): The seed to use for the random number generator. If not None this will override the seed in the samplers
-    interior_sampler (Interior_Point_Sampler): The sampler to use for the interior points. If None the defualt sampler will be used
-                                                Note: If the arguemnt "seed" in the function train is not None, the seed of the given 
-                                                        sampler will be overriden
-    boundary_sampler (Boundary_Point_Sampler): The sampler to use for the boundary points. If None the defualt sampler will be used
-                                                Note: If the arguemnt "seed" in the function train is not None, the seed of the given 
-                                                        sampler will be overriden
+        model: ParametricHmModel
+            The parametric harmonic map model to train.
+        batch_size: int, optional
+            Training batch size. Overrides sampler defaults. Defaults to 128.
+        n_epochs: int, optional
+            Total number of training epochs. Defaults to 12000.
+        optimizer: str, optional
+            Initial optimizer type ("Adam" or "SGD"). Defaults to "Adam".
+        optimizer_threshold: int, optional
+            Epoch to switch from initial optimizer to LBFGS. Defaults to 7000.
+        loss_BC_weight: float, optional
+            Weight for boundary condition loss. Ignored if model has embedding layer. Defaults to 20.
+        save_BC_loss: bool, optional
+            Whether to save boundary condition loss history. Defaults to True.
+        boundary_batch_ratio: float, optional
+            Ratio of boundary to interior points per batch. Defaults to 1.
+        seed: int, optional
+            Random seed for reproducibility. Defaults to None.
+        interior_sampler: InteriorSampler, optional
+            Custom interior point sampler. Defaults to None (creates default).
+        boundary_sampler: BoundarySampler, optional
+            Custom boundary point sampler. Defaults to None (creates default).
 
     Returns:
-    None
+        tuple
+            Training history tuple. If save_BC_loss=True: (errors, grad_errors, losses, BC_losses).
+            Otherwise: (errors, grad_errors, losses).
     """
-    # Select device
+    # Select and report device
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        print("Using Cuda")
+        print("Using CUDA")
     else:
         device = torch.device("cpu")
         print("Using CPU")
 
-    #Move the model to the device
+    # Move model to selected device
     model.to(device)
 
-    # Print the PDE that the model is solving
-    print(f"Solving the PDE: {model.PDE_class.__name__}")
+    # Print PDE class information
+    print(f"Solving parametric PDE: {model.PDE_class.__name__}")
 
-    #Initialise a lists for statistics
+    # Initialize tracking lists for training statistics
     errors, grad_errors, losses, BC_losses = [], [], [], []
 
-    # Init the optimizer
+    # Initialize optimizer and loss function
     optimizer = init_optimizers(model, optimizer)
-    
-    # Construct the loss function
     loss_fn = construct_loss_fn(model, loss_BC_weight)
 
-    # Initialize the samplers
-    interior_sampler, boundary_sampler = init_samplers(interior_sampler, boundary_sampler, seed, boundary_batch_ratio, default_batch_size=batch_size)
-    
+    # Initialize samplers with appropriate parameters
+    interior_sampler, boundary_sampler = init_samplers(
+        interior_sampler, boundary_sampler, seed, boundary_batch_ratio, default_batch_size=batch_size)
 
+    # Phase 1: Train with initial optimizer (Adam/SGD)
     for epoch in tqdm.tqdm(range(optimizer_threshold)):
-
-        #For each epoch we generate new data
+        # Sample training points
         X, X_boundary = sample_domain_points(interior_sampler, boundary_sampler, device)
 
-        # Compute the loss
+        # Compute loss (model automatically handles parameter sampling)
         loss = loss_fn(model(X), X, model(X_boundary), X_boundary)
 
-        #Append values to the lists
-        errors.append(loss_fn.relative_residual_error_value)        # Relative residual error
-        losses.append(loss_fn.loss_value)                           # RMSE loss
+        # Track training statistics
+        errors.append(loss_fn.relative_residual_error_value)
+        losses.append(loss_fn.loss_value)
         if loss_fn.boundary_loss_value is not None:
-            BC_losses.append(loss_fn.boundary_loss_value)           # RMSE boundary condition loss
+            BC_losses.append(loss_fn.boundary_loss_value)
         if loss_fn.relative_grad_error_value is not None:
-            grad_errors.append(loss_fn.relative_grad_error_value)   # Relative gradient error
+            grad_errors.append(loss_fn.relative_grad_error_value)
 
-        #Backwards pass
+        # Backward pass with gradient clipping
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)      
         optimizer.step()
 
+    # Phase 2: Train with LBFGS optimizer for fine-tuning
     for epoch in tqdm.tqdm(range(optimizer_threshold, n_epochs)):
-
-        #For each epoch we generate new data
+        # Sample training points
         X, X_boundary = sample_domain_points(interior_sampler, boundary_sampler, device)
 
+        # Create LBFGS optimizer for this epoch
         optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe")
         
-        # Compute the loss
+        # Compute loss for tracking
         loss = loss_fn(model(X), X, model(X_boundary), X_boundary)
 
-        #Append values to the lists
-        errors.append(loss_fn.relative_residual_error_value)        # Relative residual error
-        losses.append(loss_fn.loss_value)                           # RMSE loss
+        # Track training statistics
+        errors.append(loss_fn.relative_residual_error_value)
+        losses.append(loss_fn.loss_value)
         if loss_fn.boundary_loss_value is not None:
-            BC_losses.append(loss_fn.boundary_loss_value)           # RMSE boundary condition loss
+            BC_losses.append(loss_fn.boundary_loss_value)
         if loss_fn.relative_grad_error_value is not None:
-            grad_errors.append(loss_fn.relative_grad_error_value)   # Relative gradient error
+            grad_errors.append(loss_fn.relative_grad_error_value)
 
-        #Backward pass
+        # LBFGS requires closure function for line search
         def closure():
             optimizer.zero_grad()
             loss = loss_fn(model(X), X, model(X_boundary), X_boundary)
             loss.backward()
             return loss
+        
+        # Backward pass with gradient clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step(closure)
 
+    # Return training history
     if save_BC_loss:
         return errors, grad_errors, losses, BC_losses
     else:

@@ -1,3 +1,22 @@
+"""
+PDE Utilities.
+
+This module provides utility functions for PDE computations in the hmpinn library,
+including backend management, tensor operations, and mathematical functions.
+
+Functions:
+    check_backend: Validate backend compatibility.
+    ensure_backend: Ensure input matches backend type.
+    backend_to_str: Convert backend to string representation.
+    stack: Stack tensors along specified dimension.
+    zeros: Create tensor of zeros.
+    ones: Create tensor of ones.
+    all: Check if all elements are True.
+    norm: Compute tensor norm.
+    frobenius_prod: Compute Frobenius product of matrices.
+    relative_error: Compute relative error between tensors.
+"""
+
 import torch
 import numpy as np
 import nutils
@@ -5,13 +24,18 @@ import nutils.function as fn
 
 def check_backend(backend):
     """
-    Check if the backend is compatible with the input.
+    Validate backend compatibility.
 
     Parameters:
-    backend (torch or np): The backend to check.
+        backend: torch or np
+            The backend to validate.
 
     Returns:
-    bool: True if the backend is compatible, error otherwise.
+        bool
+            True if backend is valid.
+            
+    Raises:
+        ValueError: If backend is not supported.
     """
     if backend not in [torch, np]:
         raise ValueError(f"Backend {backend} is not supported. Use torch or np.")
@@ -19,24 +43,28 @@ def check_backend(backend):
 
 def ensure_backend(input, backend):
     """
-    Compare the input to the backend.
+    Ensure input tensor matches the specified backend.
 
     Parameters:
-    input (torch.Tensor or np.array): The input to compare.
-    backend (torch or np): The backend to compare to.
+        input: torch.Tensor or np.ndarray
+            The input tensor to validate.
+        backend: torch or np
+            The expected backend.
 
     Returns:
-    bool: True if the input and backend are the same, error otherwise otherwise.
+        torch.Tensor or np.ndarray
+            The input tensor if it matches the backend.
+            
+    Raises:
+        ValueError: If input type doesn't match backend.
     """
     if backend == torch:
         if isinstance(input, torch.Tensor):
-            # Convert NumPy array to PyTorch tensor
             return input
         else:
             raise ValueError(f"With torch backend, input must be a torch.Tensor not {type(input)}")
     elif backend == np:
-        if isinstance(input, np.ndarray)or isinstance(input,nutils.function._Transpose):
-            # Already a NumPy array
+        if isinstance(input, np.ndarray) or isinstance(input, nutils.function._Transpose):
             return input
         else:
             raise ValueError(f"With numpy backend, input must be a numpy.ndarray not {type(input)}")
@@ -45,13 +73,18 @@ def ensure_backend(input, backend):
     
 def backend_to_str(backend):
     """
-    Convert the backend to a string representation.
+    Convert backend to string representation.
 
     Parameters:
-    backend (torch or np): The backend to convert.
+        backend: torch or np
+            The backend to convert.
 
     Returns:
-    str: The string representation of the backend.
+        str
+            String representation of the backend.
+            
+    Raises:
+        ValueError: If backend is not supported.
     """
     if backend == torch:
         return 'torch'
@@ -62,15 +95,22 @@ def backend_to_str(backend):
 
 def stack(X, dim=1, backend=torch):
     """
-    Stack two tensors along a specified dimension.
+    Stack tensors along specified dimension.
 
     Parameters:
-    x (torch.Tensor or np.array): Sequence of arrays or tensors.
-    dim (int): The dimension along which to stack the tensors.
-    backend (torch or np): The backend to use for stacking.
+        X: sequence of torch.Tensor or np.ndarray
+            Sequence of tensors to stack.
+        dim: int, optional
+            Dimension along which to stack. Defaults to 1.
+        backend: torch or np, optional
+            Backend to use for stacking. Defaults to torch.
 
     Returns:
-    torch.Tensor or np.array: The stacked tensor.
+        torch.Tensor or np.ndarray
+            Stacked tensor.
+            
+    Raises:
+        ValueError: If backend is not supported.
     """
     if backend == torch:
         return torch.stack(X, dim=dim)
@@ -193,16 +233,21 @@ def frobenius_prod(a, b, backend=torch):
     
 #A function to compute the relative error
 def relative_error(t1, t2):
-    '''
-    Computes relative error between two tensors
+    """
+    Compute relative error between two tensors.
+    
+    Calculates the relative L2 error: ||t1 - t2|| / ||t2||
 
     Parameters:
-    t1 (torch.Tensor): The first tensor
-    t2 (torch.Tensor): The second tensor
+        t1: torch.Tensor
+            First tensor.
+        t2: torch.Tensor
+            Second tensor (reference).
 
     Returns:
-    torch.Tensor: The relative error
-    '''
+        torch.Tensor
+            Relative error between the tensors.
+    """
     return (torch.norm(t1 - t2) / torch.norm(t2))
 
 

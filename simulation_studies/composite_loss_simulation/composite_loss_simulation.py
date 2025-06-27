@@ -4,11 +4,11 @@ from omegaconf import DictConfig
 
 # project imports
 from hmpinn.models.model_v0 import ModelV0
-from hmpinn.ML_utils import train
+from hmpinn.utils.ml_utils import train
 from hmpinn.utils import get_PDE_object
 
 # poisson problem import
-from hmpinn.core.Poisson_eq_examples import *
+from hmpinn.PDEs import *
 
 # torch import
 import torch
@@ -17,8 +17,7 @@ import torch
 @hydra.main(version_base=None, config_path="config_files", config_name="config_2.yaml")
 def main(cfg: DictConfig):
     # Generate an instance of the Poisson equation depending on the input
-    
-    poisson_eq = get_PDE_object(cfg.poisson_equation)
+    poisson_eq = get_PDE_object({"PDE": {"name": cfg.poisson_equation, "PDE_kwargs": {}}}, backend=torch)
 
     # Create the model
     model = ModelV0(PDE=poisson_eq, 
