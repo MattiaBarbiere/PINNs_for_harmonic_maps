@@ -58,6 +58,10 @@ The `hmpinn/plotting/` files are very useful in plotting the results directly fr
 For the full report of the project, including theoretical background and experimental analysis, visit [Mattia_Barbiere_report.pdf](./Mattia_Barbiere_report.pdf).
 
 ### Example
+Below you find the solution given by a trained PINN when solving the quarter annulus harmonic map problem. The left image is the analytical
+boundary given by the boundary condition of the problem. The centre figure is the output of the trained PINN
+when evaluated at the boundary of the $[0,1]^2$ square. This represents the boundary that the
+PINN has learned from training. The right image is the trained PINN evaluated at the mesh of the  $[0,1]^2$ square.
 ![Report image](./image_for_readme.png)
 
 ---
