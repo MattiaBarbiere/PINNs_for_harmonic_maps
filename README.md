@@ -26,30 +26,30 @@ This project explores the use of Physics-Informed Neural Networks (PINNs) as a f
 ---
 
 ## Installation
-
-Clone the repository and install dependencies:
+Ensure you have Python 3.10+ and a virtual environment activated. Next clone the repository onto your local machine:
 
 ```bash
 >>> git clone https://github.com/MattiaBarbiere/PINNs_for_harmonic_maps.git
->>> cd PINNs_for_harmonic_maps
+```
+Once cloned, move to the folder containing `setup.py` and run the following command
+```bash
 >>> pip install -e .
 ```
+You can remove the `-e` flag if you do not want to edit the `hmpinn` module.
+
 The scirpt above should install all the requirements, if this is not the case run
 ```bash
 >>> pip install -r requirements.txt
 ```
-
-Ensure you have Python 3.10+ and a virtual environment activated.
-
 ---
 
 ## Usage
 
 ### Running experiments
-The code and results of the experiment are avaliable in the subdirectory inside `simulation_studies/`. Each experiment folder has an `ouputs/` subfolder with all the experimental data (i.e. trained model, loss and error values etc.) and the `config/` subfolder contains the configuration files for each experiment. Please read the additional [README.md](./simulation_studies/README.md) before running the scripts.
+The code and results of the experiments are avaliable in the subdirectory inside `simulation_studies/`. Each experiment folder has an `ouputs/` subfolder with all the experimental data (i.e. trained model, loss and error values etc.) and a `config/` subfolder contains the configuration files for each experiment. Please read [simulation_studies/README.md](./simulation_studies/README.md) before running the scripts.
 
 ### Plotting results
-The `hmpinn/plotting/` files are very useful in plotting the results directly from the path of the data. A lot of results (both the good and bad ones) are avaliable as notebooks in the `scripts/` subfolder. 
+The `hmpinn/plotting/` files are very useful for plotting the results directly from the path of the data. A lot of results (both good and bad) are avaliable as notebooks in the `scripts/` subfolder.
 
 ---
 
