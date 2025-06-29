@@ -8,17 +8,12 @@ Semester project, Spring 2025, EPFL
 ## Table of Contents
 
 1. [Motivation](#motivation)
-2. [Repository Structure](#repository-structure)
-3. [Installation](#installation)
-4. [Usage](#usage)
-5. [Configuration](#configuration)
-6. [Examples & Results](#examples--results)
-7. [Testing](#testing)
-8. [References](#references)
-9. [Report](#report)
-10. [License](#license)
-11. [Author & Contact](#author--contact)
-12. [Future Work](#future-work)
+2. [Installation](#installation)
+3. [Usage](#usage)
+4. [Report](#report)
+5. [Folder structure](#folder-structure)
+6. [License](#license)
+7. [Author](#author)
 
 ---
 
@@ -26,7 +21,7 @@ Semester project, Spring 2025, EPFL
 
 Harmonic maps are fundamental tools in geometry, physics, and PDE-constrained optimization, used to construct smooth mappings between domains. However, solving harmonic map equations is challenging due to their nonlinearity and the complexity of enforcing boundary conditions.
 
-This project explores the use of Physics-Informed Neural Networks (PINNs) as a flexible, mesh-free alternative to traditional solvers. By embedding the PDE and boundary conditions directly into the loss function, PINNs offer a powerful framework for approximating solutions to harmonic map problems — even in cases where analytical solutions are unavailable or classical methods are difficult to apply.
+This project explores the use of Physics-Informed Neural Networks (PINNs) as a flexible, mesh-free alternative to traditional solvers. By embedding the PDE and boundary conditions directly into the loss function, PINNs offer a powerful framework for approximating solutions to harmonic map problems, even in cases where analytical solutions are unavailable or classical methods are difficult to apply.
 
 ---
 
@@ -55,6 +50,15 @@ The code and results of the experiment are avaliable in the subdirectory inside 
 
 ### Plotting results
 The `hmpinn/plotting/` files are very useful in plotting the results directly from the path of the data. A lot of results (both the good and bad ones) are avaliable as notebooks in the `scripts/` subfolder. 
+
+---
+
+## Report
+
+For the full report of the project, including theoretical background and experimental analysis, visit [Mattia_Barbiere_report.pdf](./Mattia_Barbiere_report.pdf).
+
+### Example
+![Report image](./image_for_readme.png)
 
 ---
 
@@ -90,11 +94,6 @@ hmpinn/
 │
 └── plotting/                  # Plotting and visualization
 ```
----
-
-## Report
-
-The full report of the project, including theoretical background and experimental analysis, visit [Mattia_Barbiere_report.pdf](./Mattia_Barbiere_report.pdf).
 
 ---
 
